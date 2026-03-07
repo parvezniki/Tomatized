@@ -13,12 +13,14 @@
 body {
 background: linear-gradient(160deg, #0f3d1f 0%, #1a5c34 50%, #0d2b14 100%);
 display: flex;
-align-items: center;
+align-items: flex-start;
 justify-content: center;
 min-height: 100vh;
 font-family: ‘Nunito’, sans-serif;
 overflow: hidden;
 user-select: none;
+padding: 0;
+margin: 0;
 }
 
 .game-wrapper {
@@ -26,6 +28,7 @@ display: flex;
 flex-direction: column;
 align-items: center;
 gap: 0;
+margin-top: 0;
 }
 
 #hud-bar {
@@ -368,6 +371,74 @@ function playLifeSound() {
   } catch(e) {}
 }
 
+function playLifeLostSound() {
+  try {
+    const ac = getAudioCtx();
+    // Descending thud — low sad tones going down
+    const now = ac.currentTime;
+    [[200, 0], [150, 0.12], [100, 0.24]].forEach(([freq, delay]) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      const t = now + delay;
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.6, t + 0.15);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+    // Extra low thud
+    const thud = ac.createOscillator();
+    const thudGain = ac.createGain();
+    thud.connect(thudGain);
+    thudGain.connect(ac.destination);
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(80, now);
+    thud.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+    thudGain.gain.setValueAtTime(0.35, now);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    thud.start(now);
+    thud.stop(now + 0.35);
+  } catch(e) {}
+}
+
+function playStarGainedSound() {
+  try {
+    const ac = getAudioCtx();
+    const now = ac.currentTime;
+    // Bright jingle: rising arpeggio + sparkle
+    [[523, 0], [659, 0.08], [784, 0.16], [1047, 0.24]].forEach(([freq, delay]) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'triangle';
+      const t = now + delay;
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.1);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+    // Shimmer layer
+    const shimmer = ac.createOscillator();
+    const shimmerGain = ac.createGain();
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(ac.destination);
+    shimmer.type = 'sine';
+    shimmer.frequency.setValueAtTime(1800, now + 0.1);
+    shimmer.frequency.exponentialRampToValueAtTime(2400, now + 0.35);
+    shimmerGain.gain.setValueAtTime(0.1, now + 0.1);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    shimmer.start(now + 0.1);
+    shimmer.stop(now + 0.4);
+  } catch(e) {}
+}
+
 // ── Jump ───────────────────────────────────────────
 function doJump() {
   if (state !== 'playing') return;
@@ -489,7 +560,7 @@ function update() {
             floatLabel(tom.x, tom.y - 30, '+1 LIFE ❤️', '#ff6b9d');
           } else {
             score += 25;
-            playStarSound();
+            playStarGainedSound();
             // Gold burst particles
             for (let i = 0; i < 10; i++) {
               const a = (i / 10) * Math.PI * 2;
@@ -538,6 +609,7 @@ function update() {
   // Death: fell below screen
   if (tom.y > H + 40) {
     lives--;
+    playLifeLostSound();
     if (lives <= 0) {
       die();
     } else {
