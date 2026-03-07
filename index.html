@@ -4,9 +4,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🍅 Tomato Climb!</title>
+<title>🍅 Tomatized Tomato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap');
 
 - { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -179,6 +181,8 @@ margin-bottom: 18px;
   <div id="hud-bar">
     <div id="hud-score">🍅 HEIGHT: 0m</div>
     <div id="hud-lives">
+      <canvas id="life4" width="30" height="30"></canvas>
+      <canvas id="life3" width="30" height="30"></canvas>
       <canvas id="life2" width="30" height="30"></canvas>
       <canvas id="life1" width="30" height="30"></canvas>
       <canvas id="life0" width="30" height="30"></canvas>
@@ -210,7 +214,58 @@ margin-bottom: 18px;
 ```
 
   </div>
-  <div id="ko9-label">Powered by <span>Ko9 Games</span></div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px;">
+    <div id="ko9-label">Powered by <span>Ko9 Games</span></div>
+    <button id="btnCoupon" onclick="openCoupon()" style="
+      background:none; border:1.5px solid rgba(255,255,255,0.3);
+      border-radius:7px; padding:3px 8px;
+      font-size:14px; cursor:pointer; line-height:1;
+      color:rgba(255,255,255,0.6);
+    ">🎟️</button>
+  </div>
+</div>
+
+<!-- Coupon modal -->
+
+<div id="couponModal" style="
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center;
+">
+  <div style="
+    background:linear-gradient(135deg,#1e1e1e,#2d2d2d);
+    border:2px solid #ffd166; border-radius:18px;
+    padding:28px 28px 22px; width:290px; text-align:center;
+    box-shadow:0 8px 40px rgba(0,0,0,0.7);
+    font-family:'Nunito',sans-serif;
+  ">
+    <div style="font-size:28px;margin-bottom:6px;">🎟️</div>
+    <div style="font-family:'Lilita One',cursive;font-size:20px;color:#ffd166;margin-bottom:4px;">Enter Coupon</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;">Secret codes unlock special powers</div>
+    <input id="couponInput" type="text" placeholder="Enter code..."
+      style="
+        width:100%; padding:10px 14px; border-radius:10px;
+        border:2px solid #555; background:#111; color:#fff;
+        font-family:'Lilita One',cursive; font-size:16px;
+        letter-spacing:2px; text-align:center; text-transform:uppercase;
+        outline:none; box-sizing:border-box; margin-bottom:14px;
+      "
+    />
+    <div id="couponMsg" style="font-size:13px;min-height:18px;margin-bottom:14px;color:#ff6b6b;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="applyCoupon()" style="
+        flex:1; padding:10px; border-radius:10px; border:none;
+        background:linear-gradient(135deg,#ffd166,#e67e00);
+        font-family:'Lilita One',cursive; font-size:15px;
+        color:#1a0a00; cursor:pointer;
+      ">APPLY</button>
+      <button onclick="closeCoupon()" style="
+        flex:1; padding:10px; border-radius:10px; border:none;
+        background:#333; font-family:'Lilita One',cursive;
+        font-size:15px; color:#aaa; cursor:pointer;
+      ">CANCEL</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -223,12 +278,14 @@ const GRAVITY      = 0.35;
 const JUMP_FORCE   = -9.8;
 const BASKET_W     = 64;
 const BASKET_H     = 18;
-const TOMATO_R     = 14;
+const TOMATO_R     = 18;
 const SCROLL_SPEED = 1.4;
 
 // ── State ──────────────────────────────────────────
 let state = 'idle';   // idle | playing | dead
-let score = 0, best = 0, lives = 3;
+let score = 0, best = 0, lives = 5;
+let godMode = false; // PARVEZ11 coupon — no life loss
+let lastSafePos = null; // last position tomato was safely on a platform
 let worldY = 0;       // how far we've scrolled
 let bgScrollY = 0;    // slow independent background scroll
 let raf;
@@ -252,7 +309,9 @@ function floatLabel(x, y, text, color) {
 function initGame() {
   worldY = 0;
   score  = 0;
-  lives  = 3;
+  lives  = 5;
+  godMode = false;
+  lastSafePos = null;
   bgScrollY = 0;
   particles = [];
   floatLabels = [];
@@ -272,7 +331,7 @@ function initGame() {
 
   // Ground platform (always visible) — normal sized
   platforms = [
-    { x: W/2 - 40, y: H - 42, w: 80, speed: 0, dir: 1, angle: 0, isGround: true, isLast: false, hasStar: false, starCollected: false }
+    { x: W/2 - 40, y: H - 42, w: 80, speed: 0, dir: 1, angle: 0, isGround: true, isLast: false, hasStar: false, starCollected: false, hasBigStar: false, bigStarCollected: false, hasKnife: false, knifeSpawnTime: 0, knifeGone: false }
   ];
 
   // Pre-generate platforms above — 49 regular + 1 last
@@ -284,17 +343,24 @@ function addPlatform(isLast = false) {
   const w     = isLast ? 100 : 52 + Math.random() * 30;
   const speed = isLast ? 1.2 : 0.6 + Math.random() * 2.2;
   const angle = isLast ? 0   : (Math.random() - 0.5) * 0.22;
+  const rng   = Math.random();
+  const hasStar    = isLast ? false : rng < 0.1;
+  const hasBigStar = isLast ? false : !hasStar && rng < 0.14; // ~4% chance
+  const hasKnife   = isLast ? false : !hasStar && !hasBigStar && rng > 0.82; // ~18% chance
   platforms.push({
     x:     30 + Math.random() * (W - 60 - w),
     y:     nextPlatY,
-    w,
-    speed,
+    w, speed, angle,
     dir:   Math.random() < 0.5 ? 1 : -1,
-    angle,
     isGround: false,
     isLast,
-    hasStar: isLast ? false : Math.random() < 0.1,
+    hasStar,
     starCollected: false,
+    hasBigStar,
+    bigStarCollected: false,
+    hasKnife,
+    knifeSpawnTime: Date.now(),
+    knifeGone: false,
   });
   nextPlatY -= 70 + Math.random() * 30;
 }
@@ -442,6 +508,7 @@ function playStarGainedSound() {
 // ── Jump ───────────────────────────────────────────
 function doJump() {
   if (state !== 'playing') return;
+  if (!tom.onGround) return;  // prevent mid-air multi-tap flying
   tom.vy = JUMP_FORCE;
   tom.onGround = false;
   tom.platform = null;
@@ -546,22 +613,53 @@ function update() {
           return;
         }
 
-        // Star collection
+        // Knife hit — lose a life, bounce away
+        if (p.hasKnife && !p.knifeGone) {
+          if (!godMode) {
+            lives--;
+            playLifeLostSound();
+            for (let i = 0; i < 14; i++) {
+              const a = (i / 14) * Math.PI * 2;
+              particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3 - 2, life: 1.2, r: 5 + Math.random()*4, color: '#e63946' });
+            }
+            floatLabel(tom.x, tom.y - 30, '-1 LIFE 🔪', '#ff4444');
+            if (lives <= 0) { die(); return; }
+          } else {
+            floatLabel(tom.x, tom.y - 30, '🛡️ GOD MODE!', '#7df9ff');
+          }
+          tom.vy = JUMP_FORCE * 0.7;
+          tom.onGround = false;
+          tom.platform = null;
+          return;
+        }
+
+        // Big star collection (+50 pts + life)
+        if (p.hasBigStar && !p.bigStarCollected) {
+          p.bigStarCollected = true;
+          score += 50;
+          if (lives < 5) lives++;
+          playStarGainedSound();
+          for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2;
+            particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*3.5, vy: Math.sin(a)*3.5 - 2, life: 1.4, r: 6 + Math.random()*5, color: i%2===0?'#ffd600':'#fff' });
+          }
+          floatLabel(tom.x, tom.y - 30, '+50 ⭐ +1 LIFE!', '#ffd600');
+        }
+
+        // Small star collection
         if (p.hasStar && !p.starCollected) {
           p.starCollected = true;
-          if (lives < 3) {
+          if (lives < 5) {
             lives++;
             playLifeSound();
-            // Heart burst particles
             for (let i = 0; i < 10; i++) {
               const a = (i / 10) * Math.PI * 2;
-              particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*2.5, vy: Math.sin(a)*2.5 - 1.5, life: 1.2, r: 5 + Math.random()*4, color: '#ff6b9d', label: i === 0 ? '+❤️' : null });
+              particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*2.5, vy: Math.sin(a)*2.5 - 1.5, life: 1.2, r: 5 + Math.random()*4, color: '#ff6b9d' });
             }
             floatLabel(tom.x, tom.y - 30, '+1 LIFE ❤️', '#ff6b9d');
           } else {
             score += 25;
             playStarGainedSound();
-            // Gold burst particles
             for (let i = 0; i < 10; i++) {
               const a = (i / 10) * Math.PI * 2;
               particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*2.5, vy: Math.sin(a)*2.5 - 1.5, life: 1.2, r: 5 + Math.random()*4, color: '#ffd166' });
@@ -576,6 +674,15 @@ function update() {
           particles.push({ x: tom.x, y: tom.y + TOMATO_R, vx: Math.cos(a)*1.5, vy: Math.sin(a)*2.5 - 1, life: 1, r: 3 + Math.random()*3, color: i%2===0?'#ffd166':'#e63946' });
         }
       }
+    }
+  }
+
+  // Expire knives after 3-5 seconds
+  const now = Date.now();
+  for (const p of platforms) {
+    if (p.hasKnife && !p.knifeGone) {
+      if (!p.knifeExpiry) p.knifeExpiry = p.knifeSpawnTime + 10000 + Math.random() * 5000;
+      if (now > p.knifeExpiry) p.knifeGone = true;
     }
   }
 
@@ -606,10 +713,34 @@ function update() {
   for (const l of floatLabels) { l.y -= 1.2; l.life -= 0.025; }
   floatLabels = floatLabels.filter(l => l.life > 0);
 
+  // Save last safe grounded position
+  if (tom.onGround && tom.platform) {
+    lastSafePos = { x: tom.x, y: tom.y, platform: tom.platform, offsetX: tom.offsetX, angle: tom.angle };
+  }
+
   // Death: fell below screen
   if (tom.y > H + 40) {
-    lives--;
-    playLifeLostSound();
+    if (godMode && lastSafePos) {
+      // Teleport back to last safe position
+      tom.x = lastSafePos.x;
+      tom.y = lastSafePos.y;
+      tom.vy = 0;
+      tom.onGround = true;
+      tom.platform = lastSafePos.platform;
+      tom.offsetX = lastSafePos.offsetX;
+      tom.angle = lastSafePos.angle;
+      // Cyan teleport burst
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3 - 1, life: 1.2, r: 4 + Math.random()*4, color: i%2===0?'#7df9ff':'#fff' });
+      }
+      floatLabel(tom.x, tom.y - 30, '🛡️ SAVED!', '#7df9ff');
+      return;
+    }
+    if (!godMode) {
+      lives--;
+      playLifeLostSound();
+    }
     if (lives <= 0) {
       die();
     } else {
@@ -867,9 +998,8 @@ function drawTree(ctx, x, baseY, trunkW, height, color) {
 }
 
 function updateHUD() {
-  document.getElementById('hud-score').textContent = `🍅 HEIGHT: ${score}m`;
-  // Draw each life indicator on its small canvas
-  for (let i = 0; i < 3; i++) {
+  document.getElementById('hud-score').textContent = `🍅 HEIGHT: ${score}m` + (godMode ? '  🛡️' : '');
+  for (let i = 0; i < 5; i++) {
     const lc = document.getElementById(`life${i}`);
     const lctx = lc.getContext('2d');
     lctx.clearRect(0, 0, 30, 30);
@@ -1000,8 +1130,6 @@ function drawBasket(p) {
     const glowSize = 18 + 5 * Math.sin(Date.now() * 0.004 + p.x);
     ctx.save();
     ctx.translate(starX, starY);
-
-    // Outer glow — breathes softly
     const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, glowSize);
     glow.addColorStop(0, 'rgba(255,230,80,0.65)');
     glow.addColorStop(1, 'rgba(255,180,0,0)');
@@ -1009,37 +1137,142 @@ function drawBasket(p) {
     ctx.beginPath();
     ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
     ctx.fill();
-
-    // Draw 5-point star
     ctx.beginPath();
     for (let i = 0; i < 10; i++) {
       const angle = (i * Math.PI) / 5 - Math.PI / 2;
       const r = i % 2 === 0 ? 13 : 5.5;
-      const sx2 = Math.cos(angle) * r;
-      const sy2 = Math.sin(angle) * r;
-      i === 0 ? ctx.moveTo(sx2, sy2) : ctx.lineTo(sx2, sy2);
+      i === 0 ? ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r) : ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
     }
     ctx.closePath();
-
-    // Star gradient fill — bright gold
     const starFill = ctx.createRadialGradient(-3, -4, 1, 0, 0, 14);
     starFill.addColorStop(0, '#fff9a0');
     starFill.addColorStop(0.4, '#ffd600');
     starFill.addColorStop(1, '#e67e00');
     ctx.fillStyle = starFill;
     ctx.fill();
-
-    // Star outline
     ctx.strokeStyle = '#b85000';
     ctx.lineWidth = 1.2;
     ctx.lineJoin = 'round';
     ctx.stroke();
-
-    // Shine dot
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.beginPath();
     ctx.ellipse(-3, -5, 3, 2, -0.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Big star ──
+  if (p.hasBigStar && !p.bigStarCollected) {
+    const starX = cx;
+    const starY = p.y - 34;
+    const glowSize = 26 + 6 * Math.sin(Date.now() * 0.003 + p.x);
+    ctx.save();
+    ctx.translate(starX, starY);
+
+    // Big rainbow glow
+    const glow = ctx.createRadialGradient(0, 0, 6, 0, 0, glowSize);
+    glow.addColorStop(0, 'rgba(255,255,150,0.8)');
+    glow.addColorStop(0.5, 'rgba(255,100,200,0.4)');
+    glow.addColorStop(1, 'rgba(100,200,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Big 5-point star
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? 20 : 8;
+      i === 0 ? ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r) : ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+    }
+    ctx.closePath();
+    const bigFill = ctx.createRadialGradient(-4, -6, 1, 0, 0, 20);
+    bigFill.addColorStop(0, '#ffffff');
+    bigFill.addColorStop(0.3, '#ffd600');
+    bigFill.addColorStop(0.7, '#ff9900');
+    bigFill.addColorStop(1, '#e63946');
+    ctx.fillStyle = bigFill;
+    ctx.fill();
+    ctx.strokeStyle = '#8b0000';
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    // Sparkle dots
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 5; i++) {
+      const sa = (i / 5) * Math.PI * 2 + Date.now() * 0.003;
+      ctx.beginPath();
+      ctx.arc(Math.cos(sa)*24, Math.sin(sa)*24, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── Knife on basket ──
+  if (p.hasKnife && !p.knifeGone) {
+    const age = Date.now() - (p.knifeExpiry ? p.knifeExpiry - 3000 - 1000 : 0);
+    // Flicker when about to expire
+    const timeLeft = p.knifeExpiry ? p.knifeExpiry - Date.now() : 9999;
+    const flickering = timeLeft < 1200;
+    if (flickering && Math.floor(Date.now() / 150) % 2 === 0) return; // skip draw = flicker
+
+    ctx.save();
+    ctx.translate(cx, p.y - 22);
+    ctx.rotate(-0.3 + Math.sin(Date.now() * 0.003 + p.x) * 0.08);
+
+    // Blade
+    const bladeGrad = ctx.createLinearGradient(0, 0, 0, 38);
+    bladeGrad.addColorStop(0, '#f0f0f0');
+    bladeGrad.addColorStop(0.4, '#d0d0d0');
+    bladeGrad.addColorStop(1, '#888');
+    ctx.fillStyle = bladeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-3, 0);
+    ctx.lineTo(3, 0);
+    ctx.lineTo(3, 6);
+    ctx.quadraticCurveTo(8, 22, 2, 38);
+    ctx.lineTo(-2, 38);
+    ctx.quadraticCurveTo(-4, 22, -3, 6);
+    ctx.closePath();
+    ctx.fill();
+    // Blade shine
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-1, 4);
+    ctx.lineTo(-1, 34);
+    ctx.stroke();
+    ctx.restore();
+    // Spine
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-3, 0, 1.5, 38);
+    // Handle
+    const handleGrad = ctx.createLinearGradient(-5, -16, 5, -16);
+    handleGrad.addColorStop(0, '#3d1f08');
+    handleGrad.addColorStop(0.5, '#6b3515');
+    handleGrad.addColorStop(1, '#3d1f08');
+    ctx.fillStyle = handleGrad;
+    ctx.beginPath();
+    roundRect(ctx, -5, -18, 10, 20, 3);
+    ctx.fill();
+    // Rivet
+    ctx.fillStyle = '#c8a020';
+    ctx.beginPath();
+    ctx.arc(0, -10, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Red warning glow
+    ctx.save();
+    const warnGlow = ctx.createRadialGradient(0, 20, 2, 0, 20, 18);
+    warnGlow.addColorStop(0, 'rgba(255,0,0,0.35)');
+    warnGlow.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = warnGlow;
+    ctx.beginPath();
+    ctx.arc(0, 20, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     ctx.restore();
   }
@@ -1101,10 +1334,32 @@ function roundRect(ctx, x, y, w, h, r) {
 
 // ── Win ────────────────────────────────────────────
 let winRAF, winT0;
+let winParticles = [];
+
+function spawnWinBurst(x, y, count, colors, speedMult = 1) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (3 + Math.random() * 5) * speedMult;
+    winParticles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 3,
+      life: 1,
+      decay: 0.012 + Math.random() * 0.012,
+      r: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      shape: Math.random() < 0.5 ? 'circle' : 'rect',
+      rot: Math.random() * Math.PI * 2,
+      rotV: (Math.random() - 0.5) * 0.2,
+      gravity: 0.12 + Math.random() * 0.08,
+    });
+  }
+}
 
 function triggerWin() {
   state = 'won';
   cancelAnimationFrame(raf);
+  winParticles = [];
   document.getElementById('winscreen').style.display = 'flex';
   playWinSound();
   winT0 = null;
@@ -1135,6 +1390,31 @@ function winLoop(ts) {
   const t = ts - winT0;
   const wc = document.getElementById('winCanvas');
   const wctx = wc.getContext('2d');
+
+  // Tick win particles
+  for (const p of winParticles) {
+    p.x  += p.vx;
+    p.y  += p.vy;
+    p.vy += p.gravity;
+    p.vx *= 0.97;
+    p.rot += p.rotV;
+    p.life -= p.decay;
+  }
+  winParticles = winParticles.filter(p => p.life > 0);
+
+  // Periodic firework bursts at random positions
+  const burstColors = ['#e63946','#ffd166','#52b788','#a8dadc','#ff9f43','#fff','#ff6bd6','#7df9ff'];
+  if (Math.floor(t / 600) !== Math.floor((t - 16) / 600)) {
+    const bx = 40 + Math.random() * (W - 80);
+    const by = 80 + Math.random() * 200;
+    spawnWinBurst(bx, by, 35, burstColors, 1.4);
+  }
+
+  // Hero landing blast — one big burst when hero arrives (~t=1500ms)
+  if (t > 1480 && t < 1520 && winParticles.length < 50) {
+    spawnWinBurst(W/2, 390, 60, burstColors, 2.0);
+  }
+
   drawWinScene(wctx, t);
   winRAF = requestAnimationFrame(winLoop);
 }
@@ -1188,27 +1468,119 @@ function drawWinScene(wctx, t) {
     wctx.restore();
   }
 
-  // ── Family of tomatoes on the hill ──
-  // Positions: left to right, varying sizes, happy
+  // ── Win particle blast ──
+  for (const p of winParticles) {
+    wctx.save();
+    wctx.globalAlpha = Math.max(0, p.life);
+    wctx.translate(p.x, p.y);
+    wctx.rotate(p.rot);
+    // Glow
+    wctx.shadowColor = p.color;
+    wctx.shadowBlur = 8;
+    wctx.fillStyle = p.color;
+    if (p.shape === 'circle') {
+      wctx.beginPath();
+      wctx.arc(0, 0, p.r * p.life, 0, Math.PI * 2);
+      wctx.fill();
+    } else {
+      const s = p.r * p.life;
+      wctx.fillRect(-s * 0.5, -s * 0.8, s, s * 1.4);
+    }
+    wctx.shadowBlur = 0;
+    wctx.restore();
+  }
+
+  // ── Hero tomato vars (needed by family dance too) ──
+  const heroTargetY = 320;
+  const heroRaw = Math.min(heroTargetY, 60 + t * 0.18);
+  const heroY = heroRaw < heroTargetY ? heroRaw : heroTargetY + Math.sin(t * 0.004) * 5;
+  const heroAngle = heroRaw < heroTargetY ? Math.sin(t * 0.01) * 0.3 : Math.sin(t * 0.003) * 0.06;
+
+  // ── Family of tomatoes dancing with joy ──
   const family = [
-    { x: W*0.18, y: 455, r: 28, angle: -0.1 },
-    { x: W*0.34, y: 448, r: 32, angle:  0.0 },
-    { x: W*0.52, y: 442, r: 30, angle:  0.05 },
-    { x: W*0.68, y: 450, r: 26, angle: -0.05 },
-    { x: W*0.82, y: 456, r: 24, angle:  0.08 },
+    { x: W*0.18, y: 455, r: 28, phase: 0.0,  danceSpeed: 1.0 },
+    { x: W*0.34, y: 448, r: 32, phase: 0.8,  danceSpeed: 1.2 },
+    { x: W*0.52, y: 442, r: 30, phase: 1.6,  danceSpeed: 0.9 },
+    { x: W*0.68, y: 450, r: 26, phase: 2.4,  danceSpeed: 1.1 },
+    { x: W*0.82, y: 456, r: 24, phase: 3.2,  danceSpeed: 1.3 },
   ];
-  // Gentle bob
+
+  // Only dance after hero lands
+  const dancing = heroRaw >= heroTargetY;
+  const danceT  = dancing ? t - 1500 : 0;
+
   for (const f of family) {
-    const bob = Math.sin(t * 0.003 + f.x) * 4;
-    drawTomatoFace(wctx, f.x, f.y + bob, f.r, 'happy', f.angle);
+    const dt  = danceT * 0.004 * f.danceSpeed + f.phase;
+    const bob = dancing ? Math.sin(dt * 2) * 12 : Math.sin(t * 0.003 + f.x) * 4;
+    const tilt = dancing ? Math.sin(dt * 2) * 0.22 : 0;
+
+    // Squish/stretch on bounce peaks
+    const squishVal = dancing ? 1 + Math.cos(dt * 2) * 0.18 : 1;
+    const sx = 1 / squishVal;
+    const sy = squishVal;
+
+    const fx = f.x + (dancing ? Math.sin(dt * 1.5) * 6 : 0); // side sway
+    const fy = f.y + bob;
+
+    if (dancing) {
+      wctx.save();
+      wctx.translate(fx, fy);
+      wctx.rotate(tilt);
+
+      // Arms — left arm up, right arm up alternating
+      const armSwing = Math.sin(dt * 2);
+      wctx.strokeStyle = '#c1121f';
+      wctx.lineWidth = Math.max(2, f.r * 0.12);
+      wctx.lineCap = 'round';
+
+      // Left arm
+      const laAngle = -Math.PI * 0.6 + armSwing * 0.6;
+      wctx.beginPath();
+      wctx.moveTo(-f.r * 0.7, -f.r * 0.1);
+      wctx.lineTo(-f.r * 0.7 + Math.cos(laAngle) * f.r * 0.9,
+                  -f.r * 0.1 + Math.sin(laAngle) * f.r * 0.9);
+      wctx.stroke();
+
+      // Right arm
+      const raAngle = -Math.PI * 0.4 - armSwing * 0.6;
+      wctx.beginPath();
+      wctx.moveTo(f.r * 0.7, -f.r * 0.1);
+      wctx.lineTo(f.r * 0.7 + Math.cos(raAngle) * f.r * 0.9,
+                  -f.r * 0.1 + Math.sin(raAngle) * f.r * 0.9);
+      wctx.stroke();
+
+      // Legs
+      const legSwing = Math.sin(dt * 2) * 0.4;
+      wctx.beginPath();
+      wctx.moveTo(-f.r * 0.3, f.r * 0.8);
+      wctx.lineTo(-f.r * 0.3 + legSwing * f.r * 0.6, f.r * 1.5);
+      wctx.stroke();
+      wctx.beginPath();
+      wctx.moveTo(f.r * 0.3, f.r * 0.8);
+      wctx.lineTo(f.r * 0.3 - legSwing * f.r * 0.6, f.r * 1.5);
+      wctx.stroke();
+
+      wctx.restore();
+    }
+
+    drawTomatoFace(wctx, fx, fy, f.r, 'happy', tilt, sx, sy);
+
+    // Little music notes floating up when dancing
+    if (dancing) {
+      const noteAlpha = (Math.sin(dt * 1.8 + f.phase) * 0.5 + 0.5);
+      const noteY = fy - f.r - 10 - ((danceT * 0.03 + f.phase * 20) % 40);
+      wctx.save();
+      wctx.globalAlpha = noteAlpha * 0.85;
+      wctx.font = `${10 + f.r * 0.2}px serif`;
+      wctx.textAlign = 'center';
+      wctx.textBaseline = 'middle';
+      wctx.fillText(f.phase % 2 < 1 ? '♪' : '♫', fx + f.r * 0.8, noteY);
+      wctx.restore();
+    }
   }
 
   // ── Our hero tomato floating down from above ──
   // Drops from top, slows down, lands near centre family
-  const heroTargetY = 390;
-  const heroRaw = Math.min(heroTargetY, 60 + t * 0.18);
-  const heroY = heroRaw < heroTargetY ? heroRaw : heroTargetY + Math.sin(t * 0.004) * 5;
-  const heroAngle = heroRaw < heroTargetY ? Math.sin(t * 0.01) * 0.3 : Math.sin(t * 0.003) * 0.06;
   // Little arms/legs when descending
   if (heroRaw < heroTargetY) {
     wctx.strokeStyle = '#c1121f';
@@ -2224,12 +2596,111 @@ document.getElementById('btnWinRestart').addEventListener('click', () => {
   loop();
 });
 
+// ── Coupon System ──────────────────────────────────
+function openCoupon() {
+  if (state !== 'playing') return;
+  document.getElementById('couponModal').style.display = 'flex';
+  document.getElementById('couponInput').value = '';
+  document.getElementById('couponMsg').textContent = '';
+  setTimeout(() => document.getElementById('couponInput').focus(), 100);
+}
+
+function closeCoupon() {
+  document.getElementById('couponModal').style.display = 'none';
+}
+
+function applyCoupon() {
+  const code = document.getElementById('couponInput').value.trim().toUpperCase();
+  const msg  = document.getElementById('couponMsg');
+
+  if (code === 'PARVEZ11') {
+    godMode = true;
+    lives = 5;
+
+    // Cyan particle burst
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*4.5, vy: Math.sin(a)*4.5 - 2, life: 1.6, r: 6 + Math.random()*5, color: i%2===0?'#7df9ff':'#fff' });
+    }
+    floatLabel(tom.x, tom.y - 40, '🛡️ GOD MODE ON!', '#7df9ff');
+    playStarGainedSound();
+
+    msg.style.color = '#7df9ff';
+    msg.textContent = '🛡️ God Mode! No life loss!';
+    setTimeout(closeCoupon, 1400);
+
+  } else if (code === 'IQBAL10') {
+    // Find the second-to-last basket (index 49 is last, so 48 is last-but-one)
+    const secondLast = platforms.find((p, i) =>
+      !p.isLast && !p.isGround && i === platforms.length - 2
+    ) || platforms.slice().reverse().find(p => !p.isLast && !p.isGround);
+
+    if (!secondLast) {
+      msg.style.color = '#ff6b6b';
+      msg.textContent = 'No platform found!';
+      return;
+    }
+
+    // Teleport tomato onto that platform
+    const cx = secondLast.x + secondLast.w / 2;
+    tom.x = cx;
+    tom.y = secondLast.y - TOMATO_R;
+    tom.vy = 0;
+    tom.onGround = true;
+    tom.platform = secondLast;
+    tom.offsetX = 0;
+    tom.angle = secondLast.angle;
+
+    // Scroll world to that platform's position
+    const targetWorldY = Math.max(0, -(secondLast.y - H * 0.55));
+    worldY = targetWorldY;
+    bgScrollY = targetWorldY;
+
+    // Max score
+    score = 490;
+    lives = 3;
+
+    // Fanfare
+    playWinSound();
+
+    // Gold particle burst
+    for (let i = 0; i < 20; i++) {
+      const a = (i / 20) * Math.PI * 2;
+      particles.push({
+        x: tom.x, y: tom.y,
+        vx: Math.cos(a) * 4, vy: Math.sin(a) * 4 - 2,
+        life: 1.5, r: 6 + Math.random() * 5, color: '#ffd166'
+      });
+    }
+    floatLabel(tom.x, tom.y - 40, '🎟️ CHEAT ACTIVATED!', '#ffd166');
+
+    msg.style.color = '#7dff7d';
+    msg.textContent = '✅ Teleported! Good luck! 🍅';
+    setTimeout(closeCoupon, 1200);
+
+  } else {
+    msg.style.color = '#ff6b6b';
+    msg.textContent = '❌ Invalid code. Try again!';
+    document.getElementById('couponInput').select();
+  }
+}
+
+// Allow pressing Enter in the input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('couponInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyCoupon();
+    if (e.key === 'Escape') closeCoupon();
+  });
+});
+
 // ── Boot: show story ───────────────────────────────
 initGame();
 ctx.fillStyle = '#000';
 ctx.fillRect(0, 0, W, H);
 updateHUD();
-requestAnimationFrame(storyLoop);
+document.fonts.ready.then(() => {
+  requestAnimationFrame(storyLoop);
+});
 </script>
 
 </body>
