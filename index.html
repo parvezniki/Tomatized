@@ -18,6 +18,7 @@ display: flex;
 align-items: flex-start;
 justify-content: center;
 min-height: 100vh;
+min-height: 100dvh;
 font-family: ‘Nunito’, sans-serif;
 overflow: hidden;
 user-select: none;
@@ -31,10 +32,12 @@ flex-direction: column;
 align-items: center;
 gap: 0;
 margin-top: 0;
+/* Scale the whole wrapper to fit the screen */
+transform-origin: top center;
 }
 
 #hud-bar {
-width: 418px; /* bezel width: 390 + 14*2 padding */
+width: 418px;
 background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
 border-radius: 14px 14px 0 0;
 padding: 10px 20px;
@@ -45,6 +48,7 @@ box-shadow: 0 0 0 3px #444, 0 0 0 5px #222;
 border-bottom: 2px solid #111;
 position: relative;
 z-index: 2;
+box-sizing: border-box;
 }
 
 #hud-score {
@@ -53,17 +57,19 @@ font-size: 17px;
 color: #ffd166;
 letter-spacing: 0.5px;
 text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+white-space: nowrap;
 }
 
 #hud-lives {
 display: flex;
-gap: 5px;
+gap: 4px;
 align-items: center;
+flex-shrink: 0;
 }
 
 #hud-lives canvas {
-width: 30px;
-height: 30px;
+width: 26px;
+height: 26px;
 display: block;
 }
 
@@ -224,8 +230,6 @@ margin-bottom: 18px;
     ">🎟️</button>
   </div>
 </div>
-
-<!-- Coupon modal -->
 
 <div id="couponModal" style="
   display:none; position:fixed; inset:0; z-index:9999;
@@ -585,8 +589,8 @@ function update() {
       if (p.x + p.w > W - 10){ p.x = W - 10 - p.w; p.dir = -1; }
     }
 
-    // Landing collision — only when airborne and falling
-    if (!tom.onGround && tom.vy >= 0) {
+    // Landing collision — only when airborne, falling, and platform is on screen
+    if (!tom.onGround && tom.vy >= 0 && p.y > -20 && p.y < H + 20) {
       const tomBottom = tom.y + TOMATO_R;
       const platTop   = p.y;
 
@@ -686,7 +690,7 @@ function update() {
     }
   }
 
-  // Remove platforms that scrolled off bottom
+  // Remove platforms that scrolled off bottom (including ground once it's gone)
   const before = platforms.length;
   platforms = platforms.filter(p => p.y < H + 60);
   // If the platform tomato was riding got removed, tomato is now falling
@@ -1953,15 +1957,15 @@ function drawScene1(ctx, t) {
 
   // Caption
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  roundRect(ctx, 20, 30, W - 40, 64, 12);
+  roundRect(ctx, 20, 22, W - 40, 80, 12);
   ctx.fill();
   ctx.fillStyle = '#ffd166';
-  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.font = 'bold 26px "Lilita One", cursive';
   ctx.textAlign = 'center';
-  ctx.fillText('A basket full of tomatoes...', W/2, 58);
+  ctx.fillText('A basket full of tomatoes...', W/2, 52);
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = '13px Nunito, sans-serif';
-  ctx.fillText('Their fate: the curry pot. 😨', W/2, 80);
+  ctx.font = '17px Nunito, sans-serif';
+  ctx.fillText('Their fate: the curry pot. 😨', W/2, 82);
 
   // Spooky steam / shadow from below
   ctx.save();
@@ -2232,15 +2236,15 @@ function drawScene2(ctx, t) {
 
   // Caption
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  roundRect(ctx, 20, 22, W - 40, 64, 12);
+  roundRect(ctx, 20, 14, W - 40, 80, 12);
   ctx.fill();
   ctx.fillStyle = '#ffd166';
-  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.font = 'bold 26px "Lilita One", cursive';
   ctx.textAlign = 'center';
-  ctx.fillText('Chop, chop, chop...', W/2, 50);
+  ctx.fillText('Chop, chop, chop...', W/2, 46);
   ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = '13px Nunito, sans-serif';
-  ctx.fillText('One by one, into the curry. 🔪', W/2, 72);
+  ctx.font = '17px Nunito, sans-serif';
+  ctx.fillText('One by one, into the curry. 🔪', W/2, 78);
 
   // ── Traumatised tomato hiding in bottom-right corner ──
   const shake = Math.sin(t * 0.022) * 2.5;
@@ -2412,15 +2416,15 @@ function drawScene3(ctx, t) {
 
   // Caption
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  roundRect(ctx, 20, 22, W - 40, 64, 12);
+  roundRect(ctx, 20, 14, W - 40, 80, 12);
   ctx.fill();
   ctx.fillStyle = '#ffd166';
-  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.font = 'bold 26px "Lilita One", cursive';
   ctx.textAlign = 'center';
-  ctx.fillText('One brave tomato ESCAPES! 💨', W/2, 50);
+  ctx.fillText('One brave tomato ESCAPES! 💨', W/2, 46);
   ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = '13px Nunito, sans-serif';
-  ctx.fillText('Running for its life...', W/2, 72);
+  ctx.font = '17px Nunito, sans-serif';
+  ctx.fillText('Running for its life...', W/2, 78);
 }
 
 // ── Scene 4: Tomatized (title card) ────────────────
@@ -2458,17 +2462,17 @@ function drawScene4(ctx, t) {
   ctx.shadowColor = '#e63946';
   ctx.shadowBlur = 24;
   ctx.fillStyle = '#ffd166';
-  ctx.font = 'bold 38px "Lilita One", cursive';
-  ctx.fillText('TOMATIZED', W/2, 108);
+  ctx.font = 'bold 48px "Lilita One", cursive';
+  ctx.fillText('TOMATIZED', W/2, 112);
   ctx.shadowBlur = 0;
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '13px Nunito, sans-serif';
-  ctx.fillText('(A Traumatised Tomato)', W/2, 132);
+  ctx.font = '17px Nunito, sans-serif';
+  ctx.fillText('(A Traumatised Tomato)', W/2, 140);
   ctx.restore();
 
   // Subtitle
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '12px Nunito, sans-serif';
+  ctx.font = '16px Nunito, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('Tap anywhere to jump to safety!', W/2, 420);
 
@@ -2495,7 +2499,7 @@ function drawScene4(ctx, t) {
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px "Lilita One", cursive';
+  ctx.font = 'bold 20px "Lilita One", cursive';
   ctx.textAlign = 'center';
   ctx.fillText('▶  START CLIMBING', 0, 6);
   ctx.restore();
@@ -2692,6 +2696,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') closeCoupon();
   });
 });
+
+// ── Responsive scaling ─────────────────────────────
+function scaleGame() {
+  const wrapper = document.querySelector('.game-wrapper');
+  // Total natural height: ko9-label(~28px) + hud-bar(~56px) + bezel-padding(14px) + canvas(620px) + bezel-bottom(14px) + label(~28px) = ~760px
+  // Natural width of wrapper = 418px (hud-bar width)
+  const NATURAL_W = 418;
+  const NATURAL_H = 760;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const scaleX = vw / NATURAL_W;
+  const scaleY = vh / NATURAL_H;
+  const scale  = Math.min(scaleX, scaleY, 1); // never upscale beyond 1
+
+  wrapper.style.transform = `scale(${scale})`;
+  wrapper.style.transformOrigin = 'top center';
+
+  // Centre vertically if there's leftover space
+  const scaledH = NATURAL_H * scale;
+  const topOffset = Math.max(0, (vh - scaledH) / 2);
+  wrapper.style.marginTop = `${topOffset}px`;
+}
+
+scaleGame();
+window.addEventListener('resize', scaleGame);
+window.addEventListener('orientationchange', () => setTimeout(scaleGame, 100));
 
 // ── Boot: show story ───────────────────────────────
 initGame();
