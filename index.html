@@ -1,1 +1,2164 @@
+<!DOCTYPE html>
 
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🍅 Tomato Climb!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap');
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+background: linear-gradient(160deg, #0f3d1f 0%, #1a5c34 50%, #0d2b14 100%);
+display: flex;
+align-items: center;
+justify-content: center;
+min-height: 100vh;
+font-family: ‘Nunito’, sans-serif;
+overflow: hidden;
+user-select: none;
+}
+
+.game-wrapper {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 0;
+}
+
+#hud-bar {
+width: 418px; /* bezel width: 390 + 14*2 padding */
+background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+border-radius: 14px 14px 0 0;
+padding: 10px 20px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+box-shadow: 0 0 0 3px #444, 0 0 0 5px #222;
+border-bottom: 2px solid #111;
+position: relative;
+z-index: 2;
+}
+
+#hud-score {
+font-family: ‘Lilita One’, cursive;
+font-size: 17px;
+color: #ffd166;
+letter-spacing: 0.5px;
+text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+#hud-lives {
+display: flex;
+gap: 5px;
+align-items: center;
+}
+
+#hud-lives canvas {
+width: 30px;
+height: 30px;
+display: block;
+}
+
+.bezel {
+background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+border-radius: 0 0 20px 20px;
+padding: 0 14px 14px 14px;
+box-shadow:
+0 0 0 3px #444,
+0 0 0 5px #222,
+0 20px 60px rgba(0,0,0,0.7),
+inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+#ko9-label {
+font-family: ‘Lilita One’, cursive;
+font-size: 11px;
+color: rgba(255,255,255,0.75);
+letter-spacing: 2px;
+text-transform: uppercase;
+text-align: center;
+padding: 8px 0 2px;
+white-space: nowrap;
+}
+
+#ko9-label span {
+color: #ff6b6b;
+}
+
+#game-screen {
+position: relative;
+width: 390px;
+height: 620px;
+border-radius: 10px;
+overflow: hidden;
+touch-action: none;
+}
+
+canvas {
+display: block;
+width: 390px;
+height: 620px;
+}
+
+.overlay {
+position: absolute;
+inset: 0;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+z-index: 20;
+background: rgba(0,0,0,0.65);
+backdrop-filter: blur(4px);
+border-radius: 10px;
+}
+
+.overlay h1 {
+font-family: ‘Lilita One’, cursive;
+font-size: 44px;
+color: #ffd166;
+text-shadow: 3px 3px 0 #9d0208, 0 0 30px rgba(255,209,102,0.4);
+margin-bottom: 4px;
+line-height: 1;
+}
+
+.overlay .sub {
+font-size: 13px;
+color: rgba(255,255,255,0.6);
+margin-bottom: 6px;
+text-align: center;
+padding: 0 20px;
+line-height: 1.5;
+}
+
+.deco { font-size: 56px; margin-bottom: 6px; animation: bob 1s infinite alternate ease-in-out; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-12px); } }
+
+.btn {
+font-family: ‘Lilita One’, cursive;
+font-size: 20px;
+padding: 12px 40px;
+border: none;
+border-radius: 50px;
+cursor: pointer;
+background: linear-gradient(135deg, #e63946, #c1121f);
+color: #fff;
+text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+box-shadow: 0 6px 0 #7a0000, 0 8px 20px rgba(0,0,0,0.4);
+margin-top: 18px;
+transition: all 0.12s;
+letter-spacing: 1px;
+}
+.btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7a0000; }
+
+.score-line {
+font-family: ‘Lilita One’, cursive;
+font-size: 26px;
+color: #ffd166;
+margin-bottom: 2px;
+}
+.best-line {
+font-size: 13px;
+color: #52b788;
+font-weight: 800;
+margin-bottom: 18px;
+}
+
+#gameover { display: none; }
+</style>
+
+</head>
+<body>
+<div class="game-wrapper">
+  <div id="hud-bar">
+    <div id="hud-score">🍅 HEIGHT: 0m</div>
+    <div id="hud-lives">
+      <canvas id="life2" width="30" height="30"></canvas>
+      <canvas id="life1" width="30" height="30"></canvas>
+      <canvas id="life0" width="30" height="30"></canvas>
+    </div>
+  </div>
+  <div class="bezel">
+    <div id="game-screen">
+    <canvas id="canvas" width="390" height="620"></canvas>
+
+```
+<div class="overlay" id="startscreen" style="background:none;backdrop-filter:none;padding:0;">
+  <canvas id="storyCanvas" width="390" height="620" style="position:absolute;inset:0;border-radius:10px;"></canvas>
+  <button class="btn" id="btnSkip" style="position:absolute;bottom:22px;right:16px;margin:0;font-size:13px;padding:8px 20px;opacity:0.85;z-index:30;">SKIP ▶</button>
+</div>
+
+<div class="overlay" id="gameover">
+  <div class="deco" style="animation:none">💥</div>
+  <h1 style="font-size:34px">SPLAT!</h1>
+  <div class="score-line" id="finalScore">Height: 0</div>
+  <div class="best-line" id="bestScore">🏆 Best: 0</div>
+  <button class="btn" id="btnRestart">TRY AGAIN</button>
+</div>
+
+<div class="overlay" id="winscreen" style="display:none;background:none;backdrop-filter:none;padding:0;">
+  <canvas id="winCanvas" width="390" height="620" style="position:absolute;inset:0;border-radius:10px;"></canvas>
+  <button class="btn" id="btnWinRestart" style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;">🍅 PLAY AGAIN</button>
+</div>
+</div>
+```
+
+  </div>
+  <div id="ko9-label">Powered by <span>Ko9 Games</span></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = 390, H = 620;
+
+// ── Constants ──────────────────────────────────────
+const GRAVITY      = 0.35;
+const JUMP_FORCE   = -9.8;
+const BASKET_W     = 64;
+const BASKET_H     = 18;
+const TOMATO_R     = 14;
+const SCROLL_SPEED = 1.4;
+
+// ── State ──────────────────────────────────────────
+let state = 'idle';   // idle | playing | dead
+let score = 0, best = 0, lives = 3;
+let worldY = 0;       // how far we've scrolled
+let bgScrollY = 0;    // slow independent background scroll
+let raf;
+
+// Tomato
+let tom = {};
+
+// Platforms (baskets)
+let platforms = [];
+let nextPlatY  = 0;
+
+// Visual particles
+let particles = [];
+let floatLabels = [];  // { x, y, text, color, life }
+
+function floatLabel(x, y, text, color) {
+  floatLabels.push({ x, y, text, color, life: 1.4 });
+}
+
+// ── Init game ──────────────────────────────────────
+function initGame() {
+  worldY = 0;
+  score  = 0;
+  lives  = 3;
+  bgScrollY = 0;
+  particles = [];
+  floatLabels = [];
+
+  // Tomato starts on the ground
+  tom = {
+    x:  W / 2,
+    y:  H - 60,
+    vy: 0,
+    onGround: true,
+    platform: null,   // reference to the platform tomato is standing on
+    offsetX: 0,       // tomato's x offset from platform center when landed
+    squish: 1,
+    squishV: 0,
+    angle: 0,
+  };
+
+  // Ground platform (always visible) — normal sized
+  platforms = [
+    { x: W/2 - 40, y: H - 42, w: 80, speed: 0, dir: 1, angle: 0, isGround: true, isLast: false, hasStar: false, starCollected: false }
+  ];
+
+  // Pre-generate platforms above — 49 regular + 1 last
+  nextPlatY = H - 42 - 90;
+  for (let i = 0; i < 50; i++) addPlatform(i === 49);
+}
+
+function addPlatform(isLast = false) {
+  const w     = isLast ? 100 : 52 + Math.random() * 30;
+  const speed = isLast ? 1.2 : 0.6 + Math.random() * 2.2;
+  const angle = isLast ? 0   : (Math.random() - 0.5) * 0.22;
+  platforms.push({
+    x:     30 + Math.random() * (W - 60 - w),
+    y:     nextPlatY,
+    w,
+    speed,
+    dir:   Math.random() < 0.5 ? 1 : -1,
+    angle,
+    isGround: false,
+    isLast,
+    hasStar: isLast ? false : Math.random() < 0.1,
+    starCollected: false,
+  });
+  nextPlatY -= 70 + Math.random() * 30;
+}
+
+// ── Audio ──────────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playJumpSound() {
+  try {
+    const ac = getAudioCtx();
+    // Boing: quick pitch sweep up
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'sine';
+    const now = ac.currentTime;
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(520, now + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.22);
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    osc.start(now);
+    osc.stop(now + 0.28);
+  } catch(e) {}
+}
+
+function playStarSound() {
+  try {
+    const ac = getAudioCtx();
+    // Sparkle: three quick ascending tones
+    [0, 0.07, 0.14].forEach((delay, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'triangle';
+      const now = ac.currentTime + delay;
+      const freqs = [660, 880, 1100];
+      osc.frequency.setValueAtTime(freqs[i], now);
+      osc.frequency.exponentialRampToValueAtTime(freqs[i] * 1.3, now + 0.1);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    });
+  } catch(e) {}
+}
+
+function playLifeSound() {
+  try {
+    const ac = getAudioCtx();
+    // Heart restore: warm upward chord
+    [0, 0.06, 0.12].forEach((delay, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sine';
+      const now = ac.currentTime + delay;
+      const freqs = [330, 415, 523];
+      osc.frequency.setValueAtTime(freqs[i], now);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    });
+  } catch(e) {}
+}
+
+// ── Jump ───────────────────────────────────────────
+function doJump() {
+  if (state !== 'playing') return;
+  tom.vy = JUMP_FORCE;
+  tom.onGround = false;
+  tom.platform = null;
+  playJumpSound();
+  // Small particles on jump
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI + (Math.random() - 0.5) * 1.2;
+    particles.push({ x: tom.x, y: tom.y + TOMATO_R, vx: Math.cos(a)*2, vy: Math.sin(a)*2, life: 1, r: 4 + Math.random()*3, color:'#e63946' });
+  }
+}
+
+// ── Update ─────────────────────────────────────────
+function update() {
+  if (state !== 'playing') return;
+
+  // Slow background scroll — drifts down gently when tomato is rising
+  if (!tom.onGround && tom.vy < 0) {
+    bgScrollY += 0.4;  // creep down while rising
+  } else {
+    bgScrollY += (worldY - bgScrollY) * 0.02; // drift back to worldY when grounded
+  }
+  if (tom.onGround && tom.platform) {
+    const p = tom.platform;
+    const cx = p.x + p.w / 2;
+    tom.x = cx + tom.offsetX;
+    // Clamp to screen edges
+    tom.x = Math.max(TOMATO_R, Math.min(W - TOMATO_R, tom.x));
+    // Keep y flush with tilted platform top
+    const tilt = Math.tan(p.angle) * tom.offsetX;
+    tom.y = p.y + tilt - TOMATO_R;
+    tom.angle = p.angle;
+  }
+
+  // Gravity (only when airborne)
+  if (!tom.onGround) {
+    tom.vy += GRAVITY;
+    tom.y  += tom.vy;
+  }
+
+  // Spin while airborne
+  if (!tom.onGround) {
+    tom.angle += 0.06 * Math.sign(tom.vy || 1);
+  }
+
+  // Squish spring
+  tom.squishV += (1 - tom.squish) * 0.35;
+  tom.squishV *= 0.7;
+  tom.squish  += tom.squishV;
+
+  // Move world up when tomato is above midpoint
+  const mid = H * 0.42;
+  if (tom.y < mid) {
+    const shift = mid - tom.y;
+    tom.y = mid;
+    worldY += shift;
+    score = Math.round(worldY / 10);
+
+    // Move all platforms down
+    for (const p of platforms) p.y += shift;
+    for (const p of particles) p.y += shift;
+    for (const l of floatLabels) l.y += shift;
+  }
+
+  // Move platforms horizontally
+  if (tom.onGround && tom.platform) {
+    // handled above — don't reset onGround
+  } else {
+    tom.onGround = false;
+  }
+  for (const p of platforms) {
+    if (!p.isGround) {
+      p.x += p.speed * p.dir;
+      if (p.x < 10)          { p.x = 10;          p.dir =  1; }
+      if (p.x + p.w > W - 10){ p.x = W - 10 - p.w; p.dir = -1; }
+    }
+
+    // Landing collision — only when airborne and falling
+    if (!tom.onGround && tom.vy >= 0) {
+      const tomBottom = tom.y + TOMATO_R;
+      const platTop   = p.y;
+
+      // Adjust for platform tilt at tomato's x
+      const cx   = p.x + p.w / 2;
+      const tilt = Math.tan(p.angle) * (tom.x - cx);
+      const adjustedTop = platTop + tilt;
+
+      if (
+        tom.x >= p.x - 6 && tom.x <= p.x + p.w + 6 &&
+        tomBottom >= adjustedTop && tomBottom <= adjustedTop + tom.vy + 14
+      ) {
+        tom.y = adjustedTop - TOMATO_R;
+        tom.vy = 0;
+        tom.onGround = true;
+        tom.platform = p;
+        tom.offsetX  = tom.x - (p.x + p.w / 2);
+        tom.squish = 0.7;
+        tom.angle = p.angle;
+
+        // Win if landed on last basket
+        if (p.isLast) {
+          setTimeout(() => triggerWin(), 600);
+          return;
+        }
+
+        // Star collection
+        if (p.hasStar && !p.starCollected) {
+          p.starCollected = true;
+          if (lives < 3) {
+            lives++;
+            playLifeSound();
+            // Heart burst particles
+            for (let i = 0; i < 10; i++) {
+              const a = (i / 10) * Math.PI * 2;
+              particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*2.5, vy: Math.sin(a)*2.5 - 1.5, life: 1.2, r: 5 + Math.random()*4, color: '#ff6b9d', label: i === 0 ? '+❤️' : null });
+            }
+            floatLabel(tom.x, tom.y - 30, '+1 LIFE ❤️', '#ff6b9d');
+          } else {
+            score += 25;
+            playStarSound();
+            // Gold burst particles
+            for (let i = 0; i < 10; i++) {
+              const a = (i / 10) * Math.PI * 2;
+              particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*2.5, vy: Math.sin(a)*2.5 - 1.5, life: 1.2, r: 5 + Math.random()*4, color: '#ffd166' });
+            }
+            floatLabel(tom.x, tom.y - 30, '+25 ⭐', '#ffd166');
+          }
+        }
+
+        // Catch particles
+        for (let i = 0; i < 8; i++) {
+          const a = Math.PI + (Math.random() - 0.5) * 1.8;
+          particles.push({ x: tom.x, y: tom.y + TOMATO_R, vx: Math.cos(a)*1.5, vy: Math.sin(a)*2.5 - 1, life: 1, r: 3 + Math.random()*3, color: i%2===0?'#ffd166':'#e63946' });
+        }
+      }
+    }
+  }
+
+  // Remove platforms that scrolled off bottom
+  const before = platforms.length;
+  platforms = platforms.filter(p => p.y < H + 60);
+  // If the platform tomato was riding got removed, tomato is now falling
+  if (tom.platform && !platforms.includes(tom.platform)) {
+    tom.platform = null;
+    tom.onGround = false;
+  }
+
+  // Add new platforms at top — only if last basket hasn't been placed yet
+  const hasLast = platforms.some(p => p.isLast);
+  if (!hasLast) {
+    while (nextPlatY > -H * 0.5 + worldY) {
+      addPlatform();
+    }
+  }
+
+  // Particles
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.04;
+  }
+  particles = particles.filter(p => p.life > 0);
+
+  // Float labels
+  for (const l of floatLabels) { l.y -= 1.2; l.life -= 0.025; }
+  floatLabels = floatLabels.filter(l => l.life > 0);
+
+  // Death: fell below screen
+  if (tom.y > H + 40) {
+    lives--;
+    if (lives <= 0) {
+      die();
+    } else {
+      // Respawn on the lowest visible platform
+      const visible = platforms.filter(p => p.y < H - 20 && p.y > 100);
+      const respawn = visible.sort((a,b) => b.y - a.y)[0];
+      if (respawn) {
+        const cx = respawn.x + respawn.w / 2;
+        tom.x = cx;
+        tom.y = respawn.y - TOMATO_R;
+        tom.vy = 0;
+        tom.onGround = true;
+        tom.platform = respawn;
+        tom.offsetX = 0;
+        tom.angle = respawn.angle;
+      } else {
+        // No platform visible, just reset near bottom
+        tom.x = W / 2;
+        tom.y = H - 100;
+        tom.vy = -4;
+        tom.onGround = false;
+        tom.platform = null;
+      }
+      // Flash effect — spawn lots of particles
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*3.5, vy: Math.sin(a)*3.5 - 2, life: 1.2, r: 5 + Math.random()*5, color: '#ffd166' });
+      }
+    }
+  }
+}
+
+function die() {
+  state = 'dead';
+  if (score > best) best = score;
+  document.getElementById('finalScore').textContent = `Height: ${score}m`;
+  document.getElementById('bestScore').textContent  = `🏆 Best: ${best}m`;
+  document.getElementById('gameover').style.display = 'flex';
+  // Big splat particles
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    particles.push({ x: tom.x, y: H - 20, vx: Math.cos(a)*4, vy: Math.sin(a)*4 - 3, life: 1.5, r: 5 + Math.random()*6, color: '#e63946' });
+  }
+  cancelAnimationFrame(raf);
+  // Draw one last frame with particles
+  setTimeout(() => { draw(); }, 50);
+}
+
+// ── Draw ───────────────────────────────────────────
+function drawBackground() {
+  // progress 0 (ground) → 1 (sky) based on bgScrollY
+  const progress = Math.min(1, bgScrollY / 3500);
+
+  // ── Sky gradient — shifts from warm daytime to cool dusk to twilight ──
+  const r1 = Math.round(lerp(120, 40,  progress));
+  const g1 = Math.round(lerp(200, 120, progress));
+  const b1 = Math.round(lerp(240, 200, progress));
+  const r2 = Math.round(lerp(60,  20,  progress));
+  const g2 = Math.round(lerp(160, 60,  progress));
+  const b2 = Math.round(lerp(80,  40,  progress));
+
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,   `rgb(${r1},${g1},${b1})`);
+  sky.addColorStop(0.5, `rgb(${Math.round(lerp(80,50,progress))},${Math.round(lerp(180,90,progress))},${Math.round(lerp(120,60,progress))})`);
+  sky.addColorStop(1,   `rgb(${r2},${g2},${b2})`);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Sun / Moon ──
+  const sunX = W * 0.78;
+  const sunY = H * 0.12 + Math.sin(bgScrollY * 0.0005) * 20;
+  ctx.save();
+  // Halo
+  const halo = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 70);
+  halo.addColorStop(0, `rgba(255,240,180,${0.25 - progress * 0.15})`);
+  halo.addColorStop(1, 'transparent');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 70, 0, Math.PI * 2);
+  ctx.fill();
+  // Sun disc
+  const sunGrad = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 22);
+  sunGrad.addColorStop(0, '#fffde0');
+  sunGrad.addColorStop(0.6, '#ffd166');
+  sunGrad.addColorStop(1, '#ffaa00');
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // ── Stars (appear as progress increases) ──
+  if (progress > 0.4) {
+    const starAlpha = (progress - 0.4) / 0.6;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    const starSeeds = [
+      [30,40],[80,20],[140,60],[200,30],[260,55],[310,25],[340,75],[60,90],
+      [170,15],[240,85],[290,50],[350,35],[110,45],[380,65],[20,70]
+    ];
+    for (const [sx, sy] of starSeeds) {
+      ctx.globalAlpha = starAlpha * (0.5 + 0.5 * Math.sin(bgScrollY * 0.002 + sx));
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── Clouds — parallax layer 1 (slow) ──
+  ctx.save();
+  ctx.globalAlpha = lerp(0.55, 0.2, progress);
+  const cloudOff1 = (bgScrollY * 0.12) % (W + 220);
+  drawCloud(ctx, W + 100 - cloudOff1,        120, 1.0);
+  drawCloud(ctx, W + 100 - cloudOff1 + 310,  70,  0.7);
+  drawCloud(ctx, W + 100 - cloudOff1 - 180,  180, 0.85);
+  ctx.restore();
+
+  // ── Clouds — parallax layer 2 (faster) ──
+  ctx.save();
+  ctx.globalAlpha = lerp(0.35, 0.1, progress);
+  const cloudOff2 = (bgScrollY * 0.22) % (W + 180);
+  drawCloud(ctx, W + 80 - cloudOff2,         200, 0.6);
+  drawCloud(ctx, W + 80 - cloudOff2 + 250,   150, 0.5);
+  ctx.restore();
+
+  // ── Distant mountains (very slow parallax) ──
+  ctx.save();
+  ctx.globalAlpha = lerp(0.55, 0.15, progress);
+  const mtnOff = (bgScrollY * 0.04) % W;
+  drawMountains(ctx, -mtnOff,     H * 0.55, '#2d5a3d', 0.9);
+  drawMountains(ctx, W - mtnOff,  H * 0.55, '#2d5a3d', 0.9);
+  drawMountains(ctx, -mtnOff + 180, H * 0.62, '#3a7a50', 0.7);
+  ctx.restore();
+
+  // ── Mid-ground forest trees ──
+  ctx.save();
+  ctx.globalAlpha = lerp(0.7, 0.1, progress);
+  const treeOff = (bgScrollY * 0.08) % 120;
+  for (let i = -1; i < 5; i++) {
+    drawTree(ctx, i * 90 - treeOff + 10, H * 0.72, 38, 70, '#1a4a2a');
+    drawTree(ctx, i * 90 - treeOff + 55, H * 0.76, 28, 55, '#1f5a32');
+  }
+  ctx.restore();
+
+  // ── Foreground grass strip ──
+  ctx.save();
+  ctx.globalAlpha = lerp(0.9, 0.0, progress * 3);  // fades out fast
+  const grassGrad = ctx.createLinearGradient(0, H - 80, 0, H);
+  grassGrad.addColorStop(0, '#2d6a2d');
+  grassGrad.addColorStop(1, '#1a4a1a');
+  ctx.fillStyle = grassGrad;
+  ctx.fillRect(0, H - 80, W, 80);
+  // Grass blades
+  ctx.strokeStyle = '#3a8a3a';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 30; i++) {
+    const gx = (i * 41 + (bgScrollY * 0.15) % 41) % W;
+    const gh = 12 + (i % 5) * 4;
+    const curve = Math.sin(bgScrollY * 0.01 + i) * 4;
+    ctx.beginPath();
+    ctx.moveTo(gx, H);
+    ctx.quadraticCurveTo(gx + curve, H - gh * 0.6, gx + curve * 1.5, H - gh);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Fireflies / floating particles at mid-height ──
+  if (progress > 0.1 && progress < 0.7) {
+    const ffAlpha = Math.min(progress * 3, (0.7 - progress) * 4, 1) * 0.7;
+    ctx.save();
+    for (let i = 0; i < 8; i++) {
+      const ffx = ((Math.sin(i * 1.7 + bgScrollY * 0.003) * 0.5 + 0.5)) * W;
+      const ffy = ((Math.cos(i * 2.3 + bgScrollY * 0.002) * 0.5 + 0.5)) * H;
+      const ffPulse = 0.4 + 0.6 * Math.sin(bgScrollY * 0.008 + i * 1.3);
+      ctx.globalAlpha = ffAlpha * ffPulse;
+      ctx.fillStyle = '#d4ff70';
+      ctx.shadowColor = '#aaff00';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(ffx, ffy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // ── Light rays from sun (subtle) ──
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.fillStyle = '#fff8e0';
+  for (let i = 0; i < 6; i++) {
+    const sx = sunX + Math.sin(i * 1.05) * 5;
+    const ray = (i / 6) * Math.PI - Math.PI * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(sx, sunY);
+    ctx.lineTo(sx + Math.cos(ray - 0.12) * 500, sunY + Math.sin(ray - 0.12) * 500);
+    ctx.lineTo(sx + Math.cos(ray + 0.12) * 500, sunY + Math.sin(ray + 0.12) * 500);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+
+function drawCloud(ctx, x, y, scale) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#fff';
+  const puffs = [{x:0,y:0,r:28},{x:30,y:-10,r:22},{x:-28,y:4,r:20},{x:55,y:4,r:18},{x:-50,y:8,r:16}];
+  for (const p of puffs) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMountains(ctx, offsetX, baseY, color, scale) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(offsetX, baseY);
+  const peaks = [
+    [60, -100], [130, -60], [200, -130], [280, -80],
+    [350, -110], [420, -55], [480, -90], [540, baseY]
+  ];
+  for (const [px, py] of peaks) {
+    ctx.lineTo(offsetX + px * scale, baseY + py * scale);
+  }
+  ctx.lineTo(offsetX + 560 * scale, baseY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawTree(ctx, x, baseY, trunkW, height, color) {
+  // Trunk
+  ctx.fillStyle = '#5c3d1e';
+  ctx.fillRect(x - trunkW * 0.2, baseY - height * 0.35, trunkW * 0.4, height * 0.35);
+  // Canopy layers
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, baseY - height);
+  ctx.lineTo(x + trunkW * 0.7, baseY - height * 0.55);
+  ctx.lineTo(x - trunkW * 0.7, baseY - height * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x, baseY - height * 0.75);
+  ctx.lineTo(x + trunkW * 0.85, baseY - height * 0.3);
+  ctx.lineTo(x - trunkW * 0.85, baseY - height * 0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function updateHUD() {
+  document.getElementById('hud-score').textContent = `🍅 HEIGHT: ${score}m`;
+  // Draw each life indicator on its small canvas
+  for (let i = 0; i < 3; i++) {
+    const lc = document.getElementById(`life${i}`);
+    const lctx = lc.getContext('2d');
+    lctx.clearRect(0, 0, 30, 30);
+    const alive = i < lives;
+    lctx.save();
+    lctx.globalAlpha = alive ? 1 : 0.3;
+    drawTomatoFace(lctx, 15, 15, 12, alive ? 'happy' : 'dead', 0);
+    lctx.restore();
+  }
+}
+
+function drawBasket(p) {
+  ctx.save();
+  const cx = p.x + p.w / 2;
+  const cy = p.y + BASKET_H / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(p.angle);
+
+  const hw = p.w / 2, hh = BASKET_H / 2;
+
+  // Golden glow for last basket
+  if (p.isLast) {
+    ctx.save();
+    ctx.shadowColor = '#ffd166';
+    ctx.shadowBlur = 18 + Math.sin(Date.now() * 0.005) * 6;
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, hw + 10, hh + 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Shadow
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(0, hh + 3, hw, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Body
+  const grad = ctx.createLinearGradient(-hw, -hh, hw, hh);
+  if (p.isLast) {
+    grad.addColorStop(0, '#ffe066');
+    grad.addColorStop(0.5, '#c8860a');
+    grad.addColorStop(1, '#8b5e00');
+  } else {
+    grad.addColorStop(0, '#d4924a');
+    grad.addColorStop(0.5, '#8b5e3c');
+    grad.addColorStop(1, '#5c3d1e');
+  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-hw, -hh);
+  ctx.quadraticCurveTo(-hw - 4, 0, -hw * 0.5, hh);
+  ctx.lineTo(hw * 0.5, hh);
+  ctx.quadraticCurveTo(hw + 4, 0, hw, -hh);
+  ctx.closePath();
+  ctx.fill();
+
+  // Weave lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    const yy = -hh + (BASKET_H / 3) * i;
+    ctx.beginPath();
+    ctx.moveTo(-hw + i * 2, yy);
+    ctx.lineTo(hw - i * 2, yy);
+    ctx.stroke();
+  }
+
+  // Rim
+  ctx.strokeStyle = p.isLast ? '#fff5a0' : '#e0b06a';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-hw, -hh);
+  ctx.lineTo(hw, -hh);
+  ctx.stroke();
+
+  // Rim shine
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-hw + 4, -hh - 1);
+  ctx.lineTo(hw - 4, -hh - 1);
+  ctx.stroke();
+
+  // Speed streaks for fast baskets
+  if (p.speed > 1.8 && !p.isGround) {
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    const dir = p.dir;
+    for (let i = 0; i < 3; i++) {
+      const lx = dir > 0 ? -hw + i * 10 - 25 : hw - i * 10 + 5;
+      ctx.beginPath();
+      ctx.moveTo(lx, -hh + 4 + i * 4);
+      ctx.lineTo(lx - dir * 12, -hh + 4 + i * 4);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Crown + HOME label above last basket
+  if (p.isLast) {
+    ctx.save();
+    ctx.font = '22px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#ffd166';
+    ctx.shadowBlur = 10;
+    ctx.fillText('👑', cx, p.y - 26 + Math.sin(Date.now() * 0.004) * 3);
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 10px "Lilita One", cursive';
+    ctx.fillStyle = '#ffd166';
+    ctx.fillText('FAMILY', cx, p.y - 38);
+    ctx.restore();
+  }
+
+  // Star floating above basket (if present and not collected)
+  if (p.hasStar && !p.starCollected) {
+    const starX = cx;
+    const starY = p.y - 26;
+    const glowSize = 18 + 5 * Math.sin(Date.now() * 0.004 + p.x);
+    ctx.save();
+    ctx.translate(starX, starY);
+
+    // Outer glow — breathes softly
+    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, glowSize);
+    glow.addColorStop(0, 'rgba(255,230,80,0.65)');
+    glow.addColorStop(1, 'rgba(255,180,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw 5-point star
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? 13 : 5.5;
+      const sx2 = Math.cos(angle) * r;
+      const sy2 = Math.sin(angle) * r;
+      i === 0 ? ctx.moveTo(sx2, sy2) : ctx.lineTo(sx2, sy2);
+    }
+    ctx.closePath();
+
+    // Star gradient fill — bright gold
+    const starFill = ctx.createRadialGradient(-3, -4, 1, 0, 0, 14);
+    starFill.addColorStop(0, '#fff9a0');
+    starFill.addColorStop(0.4, '#ffd600');
+    starFill.addColorStop(1, '#e67e00');
+    ctx.fillStyle = starFill;
+    ctx.fill();
+
+    // Star outline
+    ctx.strokeStyle = '#b85000';
+    ctx.lineWidth = 1.2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Shine dot
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath();
+    ctx.ellipse(-3, -5, 3, 2, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+function drawTomato() {
+  const mood = tom.onGround ? 'happy' : (tom.vy < 0 ? 'running' : 'scared');
+  const sx = tom.onGround ? (2 - tom.squish) : 1;
+  const sy = tom.onGround ? tom.squish : 1;
+  drawTomatoFace(ctx, tom.x, tom.y, TOMATO_R, mood, tom.angle, sx, sy);
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life > 1 ? 1 : p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  for (const p of platforms) drawBasket(p);
+  drawParticles();
+  // Float labels
+  for (const l of floatLabels) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, l.life * 1.2);
+    ctx.font = 'bold 15px "Lilita One", cursive';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = l.color;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(l.text, l.x, l.y);
+    ctx.restore();
+  }
+  if (state !== 'dead') drawTomato();
+  updateHUD();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ── Win ────────────────────────────────────────────
+let winRAF, winT0;
+
+function triggerWin() {
+  state = 'won';
+  cancelAnimationFrame(raf);
+  document.getElementById('winscreen').style.display = 'flex';
+  playWinSound();
+  winT0 = null;
+  requestAnimationFrame(winLoop);
+}
+
+function playWinSound() {
+  try {
+    const ac = getAudioCtx();
+    // Happy ascending fanfare
+    const melody = [523, 659, 784, 1047];
+    melody.forEach((freq, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.type = 'sine';
+      const t = ac.currentTime + i * 0.13;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.22, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.start(t); osc.stop(t + 0.4);
+    });
+  } catch(e) {}
+}
+
+function winLoop(ts) {
+  if (!winT0) winT0 = ts;
+  const t = ts - winT0;
+  const wc = document.getElementById('winCanvas');
+  const wctx = wc.getContext('2d');
+  drawWinScene(wctx, t);
+  winRAF = requestAnimationFrame(winLoop);
+}
+
+function drawWinScene(wctx, t) {
+  // Warm sunset sky
+  const bg = wctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#ff9a3c');
+  bg.addColorStop(0.4, '#ffcc70');
+  bg.addColorStop(0.7, '#a8d5a2');
+  bg.addColorStop(1, '#4a9e4a');
+  wctx.fillStyle = bg;
+  wctx.fillRect(0, 0, W, H);
+
+  // Sun
+  wctx.save();
+  wctx.globalAlpha = 0.6;
+  const sunGrad = wctx.createRadialGradient(W/2, 160, 10, W/2, 160, 80);
+  sunGrad.addColorStop(0, '#fff7a0');
+  sunGrad.addColorStop(0.5, '#ffd166');
+  sunGrad.addColorStop(1, 'transparent');
+  wctx.fillStyle = sunGrad;
+  wctx.fillRect(0, 0, W, H);
+  wctx.restore();
+
+  // Rolling hills
+  wctx.fillStyle = '#3d8c3d';
+  wctx.beginPath();
+  wctx.moveTo(0, H);
+  wctx.bezierCurveTo(W*0.2, 440, W*0.4, 400, W*0.6, 430);
+  wctx.bezierCurveTo(W*0.75, 450, W*0.88, 420, W, 440);
+  wctx.lineTo(W, H); wctx.closePath(); wctx.fill();
+
+  wctx.fillStyle = '#52b788';
+  wctx.beginPath();
+  wctx.moveTo(0, H);
+  wctx.bezierCurveTo(W*0.15, 480, W*0.35, 460, W*0.5, 475);
+  wctx.bezierCurveTo(W*0.65, 490, W*0.82, 470, W, 480);
+  wctx.lineTo(W, H); wctx.closePath(); wctx.fill();
+
+  // Floating confetti
+  const confettiColors = ['#e63946','#ffd166','#52b788','#a8dadc','#ff9f43','#fff'];
+  for (let i = 0; i < 28; i++) {
+    const cx = (Math.sin(i * 2.3 + t * 0.001 * (1 + i%3)) * 0.5 + 0.5) * W;
+    const cy = ((t * 0.04 * (0.5 + i%4*0.15) + i * 30) % (H + 20)) - 10;
+    wctx.save();
+    wctx.translate(cx, cy);
+    wctx.rotate(t * 0.003 * (i % 5 - 2));
+    wctx.fillStyle = confettiColors[i % confettiColors.length];
+    wctx.fillRect(-4, -4, 8, 5);
+    wctx.restore();
+  }
+
+  // ── Family of tomatoes on the hill ──
+  // Positions: left to right, varying sizes, happy
+  const family = [
+    { x: W*0.18, y: 455, r: 28, angle: -0.1 },
+    { x: W*0.34, y: 448, r: 32, angle:  0.0 },
+    { x: W*0.52, y: 442, r: 30, angle:  0.05 },
+    { x: W*0.68, y: 450, r: 26, angle: -0.05 },
+    { x: W*0.82, y: 456, r: 24, angle:  0.08 },
+  ];
+  // Gentle bob
+  for (const f of family) {
+    const bob = Math.sin(t * 0.003 + f.x) * 4;
+    drawTomatoFace(wctx, f.x, f.y + bob, f.r, 'happy', f.angle);
+  }
+
+  // ── Our hero tomato floating down from above ──
+  // Drops from top, slows down, lands near centre family
+  const heroTargetY = 390;
+  const heroRaw = Math.min(heroTargetY, 60 + t * 0.18);
+  const heroY = heroRaw < heroTargetY ? heroRaw : heroTargetY + Math.sin(t * 0.004) * 5;
+  const heroAngle = heroRaw < heroTargetY ? Math.sin(t * 0.01) * 0.3 : Math.sin(t * 0.003) * 0.06;
+  // Little arms/legs when descending
+  if (heroRaw < heroTargetY) {
+    wctx.strokeStyle = '#c1121f';
+    wctx.lineWidth = 4;
+    wctx.lineCap = 'round';
+    const legSwing = Math.sin(t * 0.015) * 0.4;
+    // legs
+    wctx.beginPath(); wctx.moveTo(W/2 - 8, heroY + 16); wctx.lineTo(W/2 - 14 + legSwing*10, heroY + 30); wctx.stroke();
+    wctx.beginPath(); wctx.moveTo(W/2 + 8, heroY + 16); wctx.lineTo(W/2 + 14 - legSwing*10, heroY + 30); wctx.stroke();
+    // arms flailing
+    wctx.beginPath(); wctx.moveTo(W/2 - 18, heroY - 2); wctx.lineTo(W/2 - 30, heroY - 12 + legSwing*8); wctx.stroke();
+    wctx.beginPath(); wctx.moveTo(W/2 + 18, heroY - 2); wctx.lineTo(W/2 + 30, heroY - 12 - legSwing*8); wctx.stroke();
+  }
+  const heroMood = heroRaw >= heroTargetY ? 'happy' : 'running';
+  drawTomatoFace(wctx, W/2, heroY, 30, heroMood, heroAngle);
+
+  // Heart particles around hero once landed
+  if (heroRaw >= heroTargetY) {
+    for (let i = 0; i < 5; i++) {
+      const ha = (i / 5) * Math.PI * 2 + t * 0.002;
+      const hr = 50 + Math.sin(t * 0.004 + i) * 8;
+      const hx = W/2 + Math.cos(ha) * hr;
+      const hy = heroTargetY + Math.sin(ha) * hr * 0.5;
+      wctx.save();
+      wctx.globalAlpha = 0.7 + Math.sin(t * 0.005 + i) * 0.3;
+      wctx.font = '18px serif';
+      wctx.textAlign = 'center';
+      wctx.textBaseline = 'middle';
+      wctx.fillText('❤️', hx, hy);
+      wctx.restore();
+    }
+  }
+
+  // ── Title text ──
+  // Fade in after hero lands
+  const textAlpha = Math.min(1, Math.max(0, (t - 1800) / 600));
+  wctx.save();
+  wctx.globalAlpha = textAlpha;
+
+  // Banner bg
+  wctx.fillStyle = 'rgba(0,0,0,0.52)';
+  roundRect(wctx, 20, 28, W - 40, 110, 16);
+  wctx.fill();
+
+  wctx.textAlign = 'center';
+  wctx.shadowColor = '#ffd166';
+  wctx.shadowBlur = 16;
+  wctx.fillStyle = '#ffd166';
+  wctx.font = 'bold 30px "Lilita One", cursive';
+  wctx.fillText('YOU DID IT! 🎉', W/2, 68);
+  wctx.shadowBlur = 0;
+
+  wctx.fillStyle = '#fff';
+  wctx.font = 'bold 13px Nunito, sans-serif';
+  wctx.fillText('You helped the tomatized tomato', W/2, 94);
+  wctx.fillText('escape and reunite with its family! 🍅❤️🍅', W/2, 112);
+
+  wctx.fillStyle = '#ffd166';
+  wctx.font = 'bold 14px "Lilita One", cursive';
+  wctx.fillText(`Final height: ${score}m`, W/2, 134);
+
+  wctx.restore();
+}
+
+// ── Story Engine ───────────────────────────────────
+const sc = document.getElementById('storyCanvas');
+const sctx = sc.getContext('2d');
+
+const SCENES = [
+  { draw: drawScene1, duration: 3800 },
+  { draw: drawScene2, duration: 3800 },
+  { draw: drawScene3, duration: 3800 },
+  { draw: drawScene4, duration: 4200 },
+];
+let sceneIdx = 0;
+let sceneTimer = null;
+let storyAlpha = 0;  // fade in/out
+let storyPhase = 'in'; // in | hold | out
+let storyT = 0;
+let storyRAF;
+
+// ── Tomato face helper ─────────────────────────────
+// mood: 'scared' | 'dead' | 'running' | 'traumatised' | 'happy'
+function drawTomatoFace(ctx, x, y, r, mood, angle = 0, scaleX = 1, scaleY = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scaleX, scaleY);
+
+  // Body
+  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+  grad.addColorStop(0, '#ff6b6b');
+  grad.addColorStop(0.6, '#e63946');
+  grad.addColorStop(1, '#9d0208');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Shine
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.28, -r * 0.32, r * 0.22, r * 0.14, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Leaf on top
+  ctx.fillStyle = '#2d6a4f';
+  ctx.beginPath();
+  ctx.ellipse(0, -r + 2, r * 0.18, r * 0.28, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#40916c';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.14, -r + 1, r * 0.12, r * 0.22, -0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(r * 0.14, -r + 1, r * 0.12, r * 0.22, 0.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  const eyeY = -r * 0.12;
+  const eyeX = r * 0.28;
+
+  if (mood === 'scared' || mood === 'traumatised') {
+    // Wide scared eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(-eyeX, eyeY, r*0.18, r*0.22, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( eyeX, eyeY, r*0.18, r*0.22, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1b1b2f';
+    ctx.beginPath(); ctx.arc(-eyeX + r*0.04, eyeY + r*0.04, r*0.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( eyeX + r*0.04, eyeY + r*0.04, r*0.1, 0, Math.PI*2); ctx.fill();
+    // Sweat drops
+    if (mood === 'traumatised') {
+      ctx.fillStyle = 'rgba(100,180,255,0.8)';
+      ctx.beginPath(); ctx.ellipse(-eyeX - r*0.1, eyeY + r*0.32, r*0.06, r*0.1, 0.3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse( eyeX + r*0.14, eyeY + r*0.28, r*0.05, r*0.09, -0.3, 0, Math.PI*2); ctx.fill();
+    }
+    // Wobbly worried mouth
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.09;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.3, r * 0.35);
+    ctx.bezierCurveTo(-r*0.15, r*0.22, r*0.15, r*0.22, r*0.3, r*0.35);
+    ctx.stroke();
+    // Eyebrows slanted inward
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.08;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-eyeX - r*0.14, eyeY - r*0.28); ctx.lineTo(-eyeX + r*0.1, eyeY - r*0.18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( eyeX + r*0.14, eyeY - r*0.28); ctx.lineTo( eyeX - r*0.1, eyeY - r*0.18); ctx.stroke();
+
+  } else if (mood === 'dead') {
+    // X eyes
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.1;
+    ctx.lineCap = 'round';
+    for (const ex of [-eyeX, eyeX]) {
+      ctx.beginPath(); ctx.moveTo(ex - r*0.12, eyeY - r*0.12); ctx.lineTo(ex + r*0.12, eyeY + r*0.12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ex + r*0.12, eyeY - r*0.12); ctx.lineTo(ex - r*0.12, eyeY + r*0.12); ctx.stroke();
+    }
+    // Flat mouth
+    ctx.beginPath(); ctx.moveTo(-r*0.3, r*0.3); ctx.lineTo(r*0.3, r*0.3); ctx.stroke();
+
+  } else if (mood === 'running') {
+    // Determined eyes (half-closed)
+    ctx.fillStyle = '#1b1b2f';
+    ctx.beginPath(); ctx.arc(-eyeX, eyeY, r*0.13, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( eyeX, eyeY, r*0.13, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-eyeX - r*0.04, eyeY - r*0.04, r*0.05, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( eyeX - r*0.04, eyeY - r*0.04, r*0.05, 0, Math.PI*2); ctx.fill();
+    // Determined brows
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.09;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-eyeX - r*0.14, eyeY - r*0.22); ctx.lineTo(-eyeX + r*0.1, eyeY - r*0.14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo( eyeX + r*0.14, eyeY - r*0.22); ctx.lineTo( eyeX - r*0.1, eyeY - r*0.14); ctx.stroke();
+    // Open grin
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.28, r * 0.28);
+    ctx.bezierCurveTo(-r*0.1, r*0.46, r*0.1, r*0.46, r*0.28, r*0.28);
+    ctx.stroke();
+
+  } else { // happy
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(-eyeX, eyeY, r*0.14, r*0.16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( eyeX, eyeY, r*0.14, r*0.16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1b1b2f';
+    ctx.beginPath(); ctx.arc(-eyeX, eyeY, r*0.08, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc( eyeX, eyeY, r*0.08, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#1b1b2f';
+    ctx.lineWidth = r * 0.08;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.28, r * 0.22);
+    ctx.bezierCurveTo(-r*0.1, r*0.44, r*0.1, r*0.44, r*0.28, r*0.22);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Scene 1: Scary tomatoes in a big basket ─────────
+function drawScene1(ctx, t) {
+  // Dark kitchen background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1a0a0a');
+  bg.addColorStop(1, '#2d0f0f');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Table surface
+  ctx.fillStyle = '#4a2c1a';
+  ctx.fillRect(0, 350, W, 170);
+  ctx.fillStyle = '#3a1f10';
+  ctx.fillRect(0, 350, W, 6);
+
+  // Wood grain lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, 360 + i * 18);
+    ctx.lineTo(W, 362 + i * 18);
+    ctx.stroke();
+  }
+
+  // ── Beautiful wicker basket ──
+  const bx = W/2, by = 330;
+  const bw = 190, bh = 100;
+
+  ctx.save();
+
+  // Basket shadow on table
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.filter = 'blur(6px)';
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(bx, by + bh + 8, bw * 0.46, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.filter = 'none';
+  ctx.restore();
+
+  // Basket body — clipping path
+  ctx.beginPath();
+  ctx.moveTo(bx - bw/2, by);
+  ctx.quadraticCurveTo(bx - bw/2 - 14, by + bh*0.5, bx - bw*0.32, by + bh);
+  ctx.lineTo(bx + bw*0.32, by + bh);
+  ctx.quadraticCurveTo(bx + bw/2 + 14, by + bh*0.5, bx + bw/2, by);
+  ctx.closePath();
+  ctx.save();
+  ctx.clip();
+
+  // Fill bands — alternating light/dark weave rows
+  const bandColors = ['#c8864a','#a06030','#c8864a','#a06030','#c8864a','#b87040'];
+  const bandH = bh / bandColors.length;
+  for (let i = 0; i < bandColors.length; i++) {
+    ctx.fillStyle = bandColors[i];
+    ctx.fillRect(bx - bw/2 - 16, by + i * bandH, bw + 32, bandH + 1);
+  }
+
+  // Vertical weave strands
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#3a1a00';
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i <= 18; i++) {
+    const wx = bx - bw/2 + i * (bw / 18);
+    ctx.beginPath();
+    ctx.moveTo(wx, by);
+    ctx.lineTo(wx, by + bh);
+    ctx.stroke();
+  }
+
+  // Diagonal weave cross-hatch
+  ctx.globalAlpha = 0.1;
+  ctx.lineWidth = 1.5;
+  for (let i = -10; i < 20; i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx - bw/2 + i * 16, by);
+    ctx.lineTo(bx - bw/2 + i * 16 + bh, by + bh);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx - bw/2 + i * 16, by);
+    ctx.lineTo(bx - bw/2 + i * 16 - bh, by + bh);
+    ctx.stroke();
+  }
+
+  // Left/right inner shadow
+  ctx.globalAlpha = 1;
+  const lShadow = ctx.createLinearGradient(bx - bw/2, 0, bx - bw/2 + 40, 0);
+  lShadow.addColorStop(0, 'rgba(0,0,0,0.35)');
+  lShadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lShadow;
+  ctx.fillRect(bx - bw/2 - 14, by, 54, bh);
+
+  const rShadow = ctx.createLinearGradient(bx + bw/2, 0, bx + bw/2 - 40, 0);
+  rShadow.addColorStop(0, 'rgba(0,0,0,0.35)');
+  rShadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rShadow;
+  ctx.fillRect(bx + bw/2 - 40, by, 54, bh);
+
+  // Bottom inner shadow
+  const bShadow = ctx.createLinearGradient(0, by + bh - 20, 0, by + bh);
+  bShadow.addColorStop(0, 'rgba(0,0,0,0)');
+  bShadow.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = bShadow;
+  ctx.fillRect(bx - bw/2 - 14, by + bh - 20, bw + 28, 22);
+
+  ctx.restore(); // end clip
+
+  // Rim — thick rounded top edge
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = '#e8b870';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(bx - bw/2 - 2, by);
+  ctx.lineTo(bx + bw/2 + 2, by);
+  ctx.stroke();
+
+  // Rim highlight
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,240,200,0.6)';
+  ctx.beginPath();
+  ctx.moveTo(bx - bw/2, by - 1);
+  ctx.lineTo(bx + bw/2, by - 1);
+  ctx.stroke();
+
+  // Rim shadow underside
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.moveTo(bx - bw/2, by + 6);
+  ctx.lineTo(bx + bw/2, by + 6);
+  ctx.stroke();
+
+  // Handle arch
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#c07830';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(bx, by - 22, 55, Math.PI, 0);
+  ctx.stroke();
+  // Handle highlight
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,220,150,0.5)';
+  ctx.beginPath();
+  ctx.arc(bx, by - 24, 54, Math.PI + 0.2, -0.2);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Tomatoes in basket — packed crowd
+  const positions = [
+    { x: bx - 44, y: by - 10, r: 26, mood: 'scared', a: -0.1 },
+    { x: bx + 44, y: by - 10, r: 26, mood: 'scared', a:  0.1 },
+    { x: bx,      y: by - 16, r: 28, mood: 'scared', a:  0.0 },
+    { x: bx - 22, y: by - 44, r: 22, mood: 'scared', a: -0.2 },
+    { x: bx + 22, y: by - 44, r: 22, mood: 'scared', a:  0.15 },
+    { x: bx,      y: by - 68, r: 20, mood: 'scared', a:  0.05 },
+  ];
+  for (const p of positions) {
+    drawTomatoFace(ctx, p.x, p.y, p.r, p.mood, p.a + Math.sin(t*0.003 + p.x)*0.05);
+  }
+
+  // Caption
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  roundRect(ctx, 20, 30, W - 40, 64, 12);
+  ctx.fill();
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.textAlign = 'center';
+  ctx.fillText('A basket full of tomatoes...', W/2, 58);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '13px Nunito, sans-serif';
+  ctx.fillText('Their fate: the curry pot. 😨', W/2, 80);
+
+  // Spooky steam / shadow from below
+  ctx.save();
+  ctx.globalAlpha = 0.08 + 0.05*Math.sin(t*0.004);
+  const sgrad = ctx.createRadialGradient(W/2, H, 10, W/2, H, 200);
+  sgrad.addColorStop(0, '#ff0000');
+  sgrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = sgrad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// ── Scene 2: Chopping tomatoes ──────────────────────
+function drawScene2(ctx, t) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#f5e6d3');
+  bg.addColorStop(1, '#e8c9a0');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Chopping board
+  ctx.fillStyle = '#c8956c';
+  roundRect(ctx, 18, 255, 320, 140, 14);
+  ctx.fill();
+  ctx.fillStyle = '#b07850';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#8a5a35';
+  roundRect(ctx, 18, 255, 320, 140, 14);
+  ctx.stroke();
+  // Board grain
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 7; i++) {
+    ctx.beginPath();
+    ctx.moveTo(22, 268 + i * 18);
+    ctx.lineTo(334, 269 + i * 18);
+    ctx.stroke();
+  }
+
+  // Dead/chopped tomatoes on board — more variety
+  const chops = [
+    { x: 62,  y: 330, r: 18, mood: 'dead', a:  0.4  },
+    { x: 108, y: 315, r: 26, mood: 'dead', a: -0.15 },
+    { x: 158, y: 325, r: 21, mood: 'dead', a:  0.2  },
+    { x: 205, y: 312, r: 28, mood: 'dead', a: -0.3  },
+    { x: 252, y: 328, r: 17, mood: 'dead', a:  0.1  },
+    { x: 290, y: 318, r: 22, mood: 'dead', a: -0.2  },
+    // second row peeking behind
+    { x: 85,  y: 298, r: 14, mood: 'dead', a:  0.3  },
+    { x: 180, y: 294, r: 16, mood: 'dead', a: -0.1  },
+    { x: 270, y: 300, r: 13, mood: 'dead', a:  0.25 },
+  ];
+  for (const c of chops) drawTomatoFace(ctx, c.x, c.y, c.r, c.mood, c.a);
+
+  // Juice splatter
+  ctx.fillStyle = 'rgba(180,20,20,0.35)';
+  for (const c of chops) {
+    ctx.beginPath();
+    ctx.ellipse(c.x + 10, c.y + c.r + 4, c.r * 0.9, 8, 0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // ── Beautiful chef's knife — chopping motion ──
+  const knifeAmp  = 28;
+  const knifeY    = 195 + Math.sin(t * 0.006) * knifeAmp;
+  const knifeX    = 155;
+  const knifeRot  = 0.06 + Math.sin(t * 0.006) * 0.04; // slight rock with chop
+
+  ctx.save();
+  ctx.translate(knifeX, knifeY);
+  ctx.rotate(knifeRot);
+
+  // ── Drop shadow ──
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.filter = 'blur(4px)';
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(-6,  4);
+  ctx.lineTo(110, 4);
+  ctx.lineTo(110, 18);
+  ctx.quadraticCurveTo(60, 22, -6, 62);
+  ctx.closePath();
+  ctx.fill();
+  ctx.filter = 'none';
+  ctx.restore();
+
+  // ── Blade body ──
+  // Main steel face
+  const bladeGrad = ctx.createLinearGradient(0, 0, 0, 55);
+  bladeGrad.addColorStop(0,   '#f0f0f0');
+  bladeGrad.addColorStop(0.15,'#e8e8e8');
+  bladeGrad.addColorStop(0.45,'#d0d0d0');
+  bladeGrad.addColorStop(0.75,'#b0b0b0');
+  bladeGrad.addColorStop(1,   '#888');
+  ctx.fillStyle = bladeGrad;
+  ctx.beginPath();
+  ctx.moveTo(-4, 0);          // spine top-left
+  ctx.lineTo(108, 0);         // spine top-right (tip end)
+  ctx.lineTo(108, 6);         // tip point
+  ctx.quadraticCurveTo(50, 14, -4, 55); // curved belly of blade
+  ctx.closePath();
+  ctx.fill();
+
+  // Spine (top thick edge) — dark steel
+  const spineGrad = ctx.createLinearGradient(0, 0, 108, 0);
+  spineGrad.addColorStop(0, '#555');
+  spineGrad.addColorStop(1, '#888');
+  ctx.fillStyle = spineGrad;
+  ctx.beginPath();
+  ctx.moveTo(-4, -3);
+  ctx.lineTo(108, -3);
+  ctx.lineTo(108, 0);
+  ctx.lineTo(-4, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Shine streak on blade face
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  const shineGrad = ctx.createLinearGradient(10, 2, 10, 20);
+  shineGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  shineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = shineGrad;
+  ctx.beginPath();
+  ctx.moveTo(4, 2);
+  ctx.lineTo(90, 2);
+  ctx.lineTo(88, 9);
+  ctx.quadraticCurveTo(45, 12, 4, 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Edge bevel — thin bright line along cutting edge
+  ctx.save();
+  ctx.globalAlpha = 0.7;
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-4, 52);
+  ctx.quadraticCurveTo(50, 12, 108, 5);
+  ctx.stroke();
+  ctx.restore();
+
+  // Bolster (metal collar between blade and handle)
+  const bolsterGrad = ctx.createLinearGradient(-8, -4, -8, 56);
+  bolsterGrad.addColorStop(0, '#bbb');
+  bolsterGrad.addColorStop(0.5, '#888');
+  bolsterGrad.addColorStop(1, '#666');
+  ctx.fillStyle = bolsterGrad;
+  ctx.beginPath();
+  ctx.moveTo(-8, -4);
+  ctx.lineTo(2, -4);
+  ctx.lineTo(2, 58);
+  ctx.lineTo(-8, 56);
+  ctx.closePath();
+  ctx.fill();
+  // Bolster shine
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-7, -2, 3, 58);
+  ctx.restore();
+
+  // ── Handle ──
+  const handleGrad = ctx.createLinearGradient(-52, 0, -8, 0);
+  handleGrad.addColorStop(0,   '#2a1505');
+  handleGrad.addColorStop(0.3, '#5c3010');
+  handleGrad.addColorStop(0.6, '#3d1f08');
+  handleGrad.addColorStop(1,   '#1a0a02');
+  ctx.fillStyle = handleGrad;
+  // Slightly rounded handle shape
+  ctx.beginPath();
+  ctx.moveTo(-8, -4);
+  ctx.lineTo(-8, 24);
+  ctx.quadraticCurveTo(-54, 26, -56, 22);
+  ctx.lineTo(-56, 0);
+  ctx.quadraticCurveTo(-54, -6, -8, -4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Handle wood grain lines
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-52 + i * 9, -3);
+    ctx.lineTo(-52 + i * 9 + 2, 23);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Handle rivets (3 brass pins)
+  const rivetPositions = [-44, -32, -20];
+  for (const rx of rivetPositions) {
+    // Rivet base
+    const rgrad = ctx.createRadialGradient(rx - 1, 8, 1, rx, 10, 5);
+    rgrad.addColorStop(0, '#e8c840');
+    rgrad.addColorStop(0.6, '#b8960a');
+    rgrad.addColorStop(1, '#7a6000');
+    ctx.fillStyle = rgrad;
+    ctx.beginPath();
+    ctx.ellipse(rx, 10, 4.5, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Rivet shine
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#fff9c0';
+    ctx.beginPath();
+    ctx.ellipse(rx - 1.5, 8, 1.5, 1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Handle top shine
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(-55, 0);
+  ctx.lineTo(-8, -3);
+  ctx.lineTo(-8, 3);
+  ctx.lineTo(-55, 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore(); // end knife transform
+
+  // ── Hand gripping knife ──
+  const handX = knifeX - 32;
+  const handY = knifeY - 8;
+  ctx.save();
+  ctx.translate(handX, handY);
+  ctx.rotate(knifeRot * 0.5);
+
+  // Palm
+  const skinGrad = ctx.createRadialGradient(-2, 2, 2, 0, 4, 20);
+  skinGrad.addColorStop(0, '#f5c8a0');
+  skinGrad.addColorStop(1, '#d4935a');
+  ctx.fillStyle = skinGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 16, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Knuckle lines
+  ctx.save();
+  ctx.strokeStyle = 'rgba(150,80,20,0.3)';
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-8 + i * 7, -4);
+    ctx.quadraticCurveTo(-5 + i * 7, -8, -2 + i * 7, -4);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Thumb
+  ctx.fillStyle = '#f0be90';
+  ctx.beginPath();
+  ctx.ellipse(-14, 4, 7, 11, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Caption
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(ctx, 20, 22, W - 40, 64, 12);
+  ctx.fill();
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.textAlign = 'center';
+  ctx.fillText('Chop, chop, chop...', W/2, 50);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = '13px Nunito, sans-serif';
+  ctx.fillText('One by one, into the curry. 🔪', W/2, 72);
+
+  // ── Traumatised tomato hiding in bottom-right corner ──
+  const shake = Math.sin(t * 0.022) * 2.5;
+  const peekY = H - 100;   // moved up to clear the skip button
+  const peekX = W - 36;
+
+  // Shadow behind tomato
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(peekX + shake * 0.3, peekY + 22, 26, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Corner wall shading so it looks like it's hiding behind the wall
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.moveTo(W - 62, H);
+  ctx.lineTo(W, H);
+  ctx.lineTo(W, H - 160);
+  ctx.quadraticCurveTo(W - 10, H - 120, W - 62, H);
+  ctx.fill();
+  ctx.restore();
+
+  // Sweat drops on wall
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = 'rgba(120,180,255,0.7)';
+  for (let i = 0; i < 3; i++) {
+    const dx = W - 55 + i * 10;
+    const dy = H - 148 + i * 18 + Math.sin(t * 0.004 + i) * 4;
+    ctx.beginPath();
+    ctx.ellipse(dx, dy, 3, 5, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // The tomato — only show top half peeking up from bottom
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(W - 70, H - 135, 70, 135);  // clip to bottom-right corner
+  ctx.clip();
+  drawTomatoFace(ctx, peekX + shake, peekY, 28, 'traumatised', shake * 0.02);
+  ctx.restore();
+
+  // Small speech bubble: "..."
+  ctx.save();
+  const bx2 = W - 78, by2 = H - 148;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.ellipse(bx2, by2, 18, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Bubble tail pointing down-right
+  ctx.beginPath();
+  ctx.moveTo(bx2 + 6, by2 + 8);
+  ctx.lineTo(bx2 + 18, by2 + 20);
+  ctx.lineTo(bx2 + 2, by2 + 10);
+  ctx.fill();
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 11px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const dots = '.'.repeat(Math.floor(t / 400) % 4);
+  ctx.fillText(dots || '.', bx2, by2);
+  ctx.restore();
+}
+
+// ── Scene 3: One tomato escapes ─────────────────────
+function drawScene3(ctx, t) {
+  // Outdoor scene — night escape
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0d1b3e');
+  bg.addColorStop(0.7, '#1a2f5a');
+  bg.addColorStop(1, '#2a4a2a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  ctx.fillStyle = '#fff';
+  const stars = [[40,60],[80,30],[130,80],[200,45],[260,70],[300,35],[320,90],[60,110],[170,20],[240,100]];
+  for (const [sx,sy] of stars) {
+    ctx.globalAlpha = 0.5 + 0.5*Math.sin(t*0.004 + sx);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Moon
+  ctx.fillStyle = '#fffde7';
+  ctx.beginPath();
+  ctx.arc(W - 55, 55, 32, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#f5f0c0';
+  ctx.beginPath();
+  ctx.arc(W - 48, 50, 28, 0, Math.PI*2);
+  ctx.fill();
+
+  // Ground
+  const grd = ctx.createLinearGradient(0, 370, 0, H);
+  grd.addColorStop(0, '#2d5a1e');
+  grd.addColorStop(1, '#1a3a10');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 370, W, 150);
+
+  // Kitchen window in bg
+  ctx.fillStyle = '#3a2010';
+  ctx.fillRect(40, 180, 120, 90);
+  ctx.fillStyle = 'rgba(255,220,100,0.3)';
+  ctx.fillRect(44, 184, 54, 82);
+  ctx.fillRect(102, 184, 54, 82);
+  ctx.strokeStyle = '#5c3d1e';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(40, 180, 120, 90);
+
+  // Shadow figure chopping in window
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.beginPath();
+  ctx.ellipse(75, 230, 18, 28, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Raised arm
+  const armY = 210 + Math.sin(t*0.008)*12;
+  ctx.beginPath();
+  ctx.moveTo(75, 215);
+  ctx.lineTo(95, armY);
+  ctx.lineTo(105, armY + 8);
+  ctx.lineTo(95, armY + 14);
+  ctx.closePath();
+  ctx.fill();
+
+  // Running tomato — bouncing across screen
+  const runX = 60 + ((t * 0.08) % (W + 40));
+  const runY = 355 + Math.abs(Math.sin(t * 0.012)) * -28;
+  const legAngle = Math.sin(t * 0.015) * 0.4;
+  // Legs
+  ctx.strokeStyle = '#c1121f';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(runX - 6, runY + 16);
+  ctx.lineTo(runX - 12 + legAngle*12, runY + 30);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(runX + 6, runY + 16);
+  ctx.lineTo(runX + 12 - legAngle*12, runY + 30);
+  ctx.stroke();
+  // Arms swinging
+  ctx.beginPath();
+  ctx.moveTo(runX - 14, runY - 4);
+  ctx.lineTo(runX - 22 - legAngle*8, runY + 8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(runX + 14, runY - 4);
+  ctx.lineTo(runX + 22 + legAngle*8, runY + 8);
+  ctx.stroke();
+  drawTomatoFace(ctx, runX, runY, 22, 'running', -0.12 + legAngle*0.1);
+
+  // Speed lines
+  ctx.strokeStyle = 'rgba(255,255,200,0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(runX - 28 - i*12, runY - 6 + i*5);
+    ctx.lineTo(runX - 44 - i*12, runY - 6 + i*5);
+    ctx.stroke();
+  }
+
+  // Caption
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(ctx, 20, 22, W - 40, 64, 12);
+  ctx.fill();
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 18px "Lilita One", cursive';
+  ctx.textAlign = 'center';
+  ctx.fillText('One brave tomato ESCAPES! 💨', W/2, 50);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = '13px Nunito, sans-serif';
+  ctx.fillText('Running for its life...', W/2, 72);
+}
+
+// ── Scene 4: Tomatized (title card) ────────────────
+function drawScene4(ctx, t) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0f0f1a');
+  bg.addColorStop(1, '#1a0a0a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Vignette
+  const vig = ctx.createRadialGradient(W/2, H/2, 80, W/2, H/2, 240);
+  vig.addColorStop(0, 'transparent');
+  vig.addColorStop(1, 'rgba(0,0,0,0.7)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  // Traumatised tomato — shaking
+  const shake = Math.sin(t * 0.025) * 3;
+  const blink = Math.sin(t * 0.01) > 0.92;
+  drawTomatoFace(ctx, W/2 + shake, 200 + Math.sin(t*0.008)*4, 54, blink ? 'dead' : 'traumatised', shake*0.015);
+
+  // Flashback ghost tomatoes fading in bg
+  ctx.save();
+  ctx.globalAlpha = 0.12 + 0.06*Math.sin(t*0.005);
+  drawTomatoFace(ctx, 60,  300, 18, 'dead', -0.3);
+  drawTomatoFace(ctx, 270, 280, 18, 'dead',  0.2);
+  drawTomatoFace(ctx, 160, 340, 14, 'dead',  0.1);
+  ctx.restore();
+
+  // Title
+  ctx.save();
+  ctx.textAlign = 'center';
+  // Glow
+  ctx.shadowColor = '#e63946';
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 38px "Lilita One", cursive';
+  ctx.fillText('TOMATIZED', W/2, 108);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '13px Nunito, sans-serif';
+  ctx.fillText('(A Traumatised Tomato)', W/2, 132);
+  ctx.restore();
+
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '12px Nunito, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Tap anywhere to jump to safety!', W/2, 420);
+
+  // Heartbeat pulse ring
+  const pulse = (Math.sin(t * 0.009) + 1) / 2;
+  ctx.save();
+  ctx.globalAlpha = pulse * 0.25;
+  ctx.strokeStyle = '#e63946';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(W/2, 200, 70 + pulse * 30, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Play button teaser
+  const btnPulse = 0.95 + 0.05*Math.sin(t*0.007);
+  ctx.save();
+  ctx.translate(W/2, 460);
+  ctx.scale(btnPulse, btnPulse);
+  ctx.fillStyle = '#e63946';
+  ctx.shadowColor = '#e63946';
+  ctx.shadowBlur = 12;
+  roundRect(ctx, -70, -20, 140, 40, 20);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px "Lilita One", cursive';
+  ctx.textAlign = 'center';
+  ctx.fillText('▶  START CLIMBING', 0, 6);
+  ctx.restore();
+}
+
+// ── Story animation loop ────────────────────────────
+function storyLoop(ts) {
+  if (!storyT) storyT = ts;
+  const elapsed = ts - storyT;
+  const scene = SCENES[sceneIdx];
+  const fadeDur = 400;
+
+  sctx.clearRect(0, 0, W, H);
+  sctx.fillStyle = '#000';
+  sctx.fillRect(0, 0, W, H);
+
+  // Fade alpha
+  let alpha = 1;
+  if (elapsed < fadeDur) alpha = elapsed / fadeDur;
+  else if (elapsed > scene.duration - fadeDur) alpha = (scene.duration - elapsed) / fadeDur;
+  alpha = Math.max(0, Math.min(1, alpha));
+
+  sctx.save();
+  sctx.globalAlpha = alpha;
+  scene.draw(sctx, elapsed);
+  sctx.restore();
+
+  // Dot indicators
+  sctx.save();
+  for (let i = 0; i < SCENES.length; i++) {
+    sctx.fillStyle = i === sceneIdx ? '#ffd166' : 'rgba(255,255,255,0.3)';
+    sctx.beginPath();
+    sctx.arc(W/2 - (SCENES.length-1)*9 + i*18, H - 12, 4, 0, Math.PI*2);
+    sctx.fill();
+  }
+  sctx.restore();
+
+  if (elapsed >= scene.duration) {
+    storyT = null;
+    sceneIdx++;
+    if (sceneIdx >= SCENES.length) {
+      launchGame();
+      return;
+    }
+  }
+  storyRAF = requestAnimationFrame(storyLoop);
+}
+
+function launchGame() {
+  document.getElementById('startscreen').style.display = 'none';
+  cancelAnimationFrame(storyRAF);
+  initGame();
+  state = 'playing';
+  loop();
+}
+
+// Skip button & tap on last scene
+document.getElementById('btnSkip').addEventListener('click', launchGame);
+sc.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (sceneIdx === SCENES.length - 1) {
+    // tap on last scene = start game
+    launchGame();
+  } else {
+    // tap on earlier scene = jump to next
+    sceneIdx++;
+    storyT = null;
+  }
+});
+
+// ── Game loop ──────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  raf = requestAnimationFrame(loop);
+}
+
+// ── Game Input ─────────────────────────────────────
+const screen = document.getElementById('game-screen');
+screen.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (state === 'playing') doJump();
+});
+
+document.getElementById('btnRestart').addEventListener('click', () => {
+  document.getElementById('gameover').style.display = 'none';
+  cancelAnimationFrame(raf);
+  initGame();
+  state = 'playing';
+  loop();
+});
+
+document.getElementById('btnWinRestart').addEventListener('click', () => {
+  document.getElementById('winscreen').style.display = 'none';
+  cancelAnimationFrame(winRAF);
+  initGame();
+  state = 'playing';
+  loop();
+});
+
+// ── Boot: show story ───────────────────────────────
+initGame();
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, W, H);
+updateHUD();
+requestAnimationFrame(storyLoop);
+</script>
+
+</body>
+</html>
