@@ -290,6 +290,8 @@ let state = 'idle';   // idle | playing | dead
 let score = 0, best = 0, lives = 5;
 let godMode = false; // PARVEZ11 coupon — no life loss
 let lastSafePos = null; // last position tomato was safely on a platform
+let rocketMode = false; // big star rocket launch in progress
+let rocketTapMode = false; // TEST12 — every tap launches rocket
 let worldY = 0;       // how far we've scrolled
 let bgScrollY = 0;    // slow independent background scroll
 let raf;
@@ -316,6 +318,8 @@ function initGame() {
   lives  = 5;
   godMode = false;
   lastSafePos = null;
+  rocketMode = false;
+  rocketTapMode = false;
   bgScrollY = 0;
   particles = [];
   floatLabels = [];
@@ -340,17 +344,18 @@ function initGame() {
 
   // Pre-generate platforms above — 49 regular + 1 last
   nextPlatY = H - 42 - 90;
-  for (let i = 0; i < 50; i++) addPlatform(i === 49);
+  for (let i = 0; i < 50; i++) addPlatform(i === 49, i);
 }
 
-function addPlatform(isLast = false) {
+function addPlatform(isLast = false, idx = 0) {
   const w     = isLast ? 100 : 52 + Math.random() * 30;
   const speed = isLast ? 1.2 : 0.6 + Math.random() * 2.2;
   const angle = isLast ? 0   : (Math.random() - 0.5) * 0.22;
   const rng   = Math.random();
+  const nearEnd     = idx >= 43; // last 7 baskets (43–49)
   const hasStar    = isLast ? false : rng < 0.1;
-  const hasBigStar = isLast ? false : !hasStar && rng < 0.14; // ~4% chance
-  const hasKnife   = isLast ? false : !hasStar && !hasBigStar && rng > 0.82; // ~18% chance
+  const hasBigStar = (isLast || nearEnd) ? false : !hasStar && rng < 0.14;
+  const hasKnife   = isLast ? false : !hasStar && !hasBigStar && rng > 0.82;
   platforms.push({
     x:     30 + Math.random() * (W - 60 - w),
     y:     nextPlatY,
@@ -512,12 +517,24 @@ function playStarGainedSound() {
 // ── Jump ───────────────────────────────────────────
 function doJump() {
   if (state !== 'playing') return;
-  if (!tom.onGround) return;  // prevent mid-air multi-tap flying
+  if (!tom.onGround) return;
+  if (rocketMode) return;
+  if (rocketTapMode) {
+    // On second-to-last basket, do a normal jump instead
+    const lastPlat = platforms.find(p => p.isLast);
+    const lastIdx  = lastPlat ? platforms.indexOf(lastPlat) : -1;
+    const secondLast = lastIdx > 0 ? platforms[lastIdx - 1] : null;
+    if (secondLast && tom.platform === secondLast) {
+      // normal jump
+    } else {
+      launchRocket();
+      return;
+    }
+  }
   tom.vy = JUMP_FORCE;
   tom.onGround = false;
   tom.platform = null;
   playJumpSound();
-  // Small particles on jump
   for (let i = 0; i < 6; i++) {
     const a = Math.PI + (Math.random() - 0.5) * 1.2;
     particles.push({ x: tom.x, y: tom.y + TOMATO_R, vx: Math.cos(a)*2, vy: Math.sin(a)*2, life: 1, r: 4 + Math.random()*3, color:'#e63946' });
@@ -548,8 +565,32 @@ function update() {
 
   // Gravity (only when airborne)
   if (!tom.onGround) {
-    tom.vy += GRAVITY;
-    tom.y  += tom.vy;
+    if (rocketMode && tom.rocketTarget) {
+      const tgt = tom.rocketTarget;
+
+      // Steer X toward target center
+      tom.x += ((tgt.x + tgt.w / 2) - tom.x) * 0.05;
+      tom.x = Math.max(TOMATO_R, Math.min(W - TOMATO_R, tom.x));
+
+      // Move tomato upward
+      tom.vy = -12;
+      tom.y += tom.vy;
+
+      // Rocket trail
+      if (Math.random() < 0.7) {
+        particles.push({
+          x: tom.x + (Math.random()-0.5)*12,
+          y: tom.y + TOMATO_R + 4,
+          vx: (Math.random()-0.5)*2,
+          vy: 3 + Math.random()*3,
+          life: 1.1, r: 5 + Math.random()*6,
+          color: ['#ffd600','#ff9900','#fff','#ff4444','#7df9ff'][Math.floor(Math.random()*5)]
+        });
+      }
+    } else {
+      tom.vy += GRAVITY;
+      tom.y  += tom.vy;
+    }
   }
 
   // Spin while airborne
@@ -565,21 +606,47 @@ function update() {
   // Move world up when tomato is above midpoint
   const mid = H * 0.42;
   if (tom.y < mid) {
-    const shift = mid - tom.y;
-    tom.y = mid;
+    const rawShift = mid - tom.y;
+    const shift = rocketMode ? Math.min(rawShift, 5) : rawShift;
+    tom.y = rocketMode ? tom.y + (rawShift - shift) : mid;
     worldY += shift;
-    score = Math.round(worldY / 10);
+    if (!rocketMode) score = Math.round(worldY / 10);
 
-    // Move all platforms down
     for (const p of platforms) p.y += shift;
     for (const p of particles) p.y += shift;
     for (const l of floatLabels) l.y += shift;
   }
 
+  // Rocket: snap-land when target basket reaches mid-screen
+  if (rocketMode && tom.rocketTarget) {
+    const tgt = tom.rocketTarget;
+    // Once target basket is scrolled into view at mid-screen, land on it
+    if (tgt.y >= mid && tgt.y <= mid + 60) {
+      rocketMode = false;
+      const landY = tgt.y - TOMATO_R;
+      tom.y      = landY;
+      tom.vy     = 0;
+      tom.angle  = tgt.angle;
+      tom.squish = 0.5;
+      tom.x      = tgt.x + tgt.w / 2; // center on basket
+      tom.offsetX = 0;
+      // Force platform riding to kick in next frame
+      tom.platform  = tgt;
+      tom.onGround  = true;
+      tom.rocketTarget = null;
+      score += 50;
+      floatLabel(tom.x, tom.y - 40, '+50 🚀', '#ffd600');
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2;
+        particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*5, vy: Math.sin(a)*5 - 3, life: 1.5, r: 5 + Math.random()*6, color: ['#ffd600','#fff','#ff9900','#7df9ff'][i%4] });
+      }
+    }
+  }
+
   // Move platforms horizontally
   if (tom.onGround && tom.platform) {
-    // handled above — don't reset onGround
-  } else {
+    // riding a platform — keep onGround
+  } else if (!tom.platform) {
     tom.onGround = false;
   }
   for (const p of platforms) {
@@ -589,8 +656,8 @@ function update() {
       if (p.x + p.w > W - 10){ p.x = W - 10 - p.w; p.dir = -1; }
     }
 
-    // Landing collision — only when airborne, falling, and platform is on screen
-    if (!tom.onGround && tom.vy >= 0 && p.y > -20 && p.y < H + 20) {
+    // Landing collision — only when airborne, falling, and platform is on screen — skip during rocket
+    if (!rocketMode && !tom.onGround && tom.vy >= 0 && p.y > -20 && p.y < H + 20) {
       const tomBottom = tom.y + TOMATO_R;
       const platTop   = p.y;
 
@@ -637,17 +704,11 @@ function update() {
           return;
         }
 
-        // Big star collection (+50 pts + life)
+        // Big star — ROCKET LAUNCH: skip 5 baskets, land on 6th above
         if (p.hasBigStar && !p.bigStarCollected) {
           p.bigStarCollected = true;
-          score += 50;
-          if (lives < 5) lives++;
-          playStarGainedSound();
-          for (let i = 0; i < 16; i++) {
-            const a = (i / 16) * Math.PI * 2;
-            particles.push({ x: tom.x, y: tom.y - 20, vx: Math.cos(a)*3.5, vy: Math.sin(a)*3.5 - 2, life: 1.4, r: 6 + Math.random()*5, color: i%2===0?'#ffd600':'#fff' });
-          }
-          floatLabel(tom.x, tom.y - 30, '+50 ⭐ +1 LIFE!', '#ffd600');
+          launchRocket();
+          return; // skip catch particles
         }
 
         // Small star collection
@@ -1002,7 +1063,7 @@ function drawTree(ctx, x, baseY, trunkW, height, color) {
 }
 
 function updateHUD() {
-  document.getElementById('hud-score').textContent = `🍅 HEIGHT: ${score}m` + (godMode ? '  🛡️' : '');
+  document.getElementById('hud-score').textContent = `🍅 HEIGHT: ${score}m` + (godMode ? '  🛡️' : '') + (rocketTapMode ? '  🚀' : '');
   for (let i = 0; i < 5; i++) {
     const lc = document.getElementById(`life${i}`);
     const lctx = lc.getContext('2d');
@@ -1358,6 +1419,40 @@ function spawnWinBurst(x, y, count, colors, speedMult = 1) {
       gravity: 0.12 + Math.random() * 0.08,
     });
   }
+}
+
+function launchRocket() {
+  // Find platforms above tomato, sort closest first (descending Y)
+  const above = platforms
+    .filter(pl => pl.y < tom.y - 20 && !pl.isGround)
+    .sort((a, b) => b.y - a.y);
+
+  // Find second-to-last basket (one before isLast)
+  const lastIdx = platforms.findIndex(pl => pl.isLast);
+  const secondLast = lastIdx > 0 ? platforms[lastIdx - 1] : null;
+
+  // Pick 6th basket above, but cap at second-to-last
+  let targetPlat = above[5] || above[above.length - 1];
+  if (!targetPlat) return false;
+
+  // If target is the last basket or beyond second-to-last, clamp to second-to-last
+  if (secondLast && (targetPlat.isLast || targetPlat.y <= secondLast.y)) {
+    targetPlat = secondLast;
+  }
+
+  rocketMode = true;
+  tom.rocketTarget = targetPlat;
+  tom.vy = -5;
+  tom.onGround = false;
+  tom.platform = null;
+
+  playStarGainedSound();
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2;
+    particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*5, vy: Math.sin(a)*5 - 4, life: 1.6, r: 6 + Math.random()*6, color: ['#ffd600','#fff','#ff9900','#7df9ff'][i%4] });
+  }
+  floatLabel(tom.x, tom.y - 30, '🚀 ROCKET!', '#ffd600');
+  return true;
 }
 
 function triggerWin() {
@@ -2681,6 +2776,18 @@ function applyCoupon() {
     msg.style.color = '#7dff7d';
     msg.textContent = '✅ Teleported! Good luck! 🍅';
     setTimeout(closeCoupon, 1200);
+
+  } else if (code === 'TEST12') {
+    rocketTapMode = true;
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * Math.PI * 2;
+      particles.push({ x: tom.x, y: tom.y, vx: Math.cos(a)*5, vy: Math.sin(a)*5 - 4, life: 1.6, r: 6 + Math.random()*6, color: ['#ffd600','#fff','#ff9900','#7df9ff'][i%4] });
+    }
+    floatLabel(tom.x, tom.y - 40, '🚀 ROCKET TAPS!', '#ffd600');
+    playStarGainedSound();
+    msg.style.color = '#ffd600';
+    msg.textContent = '🚀 Every tap now rockets you up!';
+    setTimeout(closeCoupon, 1400);
 
   } else {
     msg.style.color = '#ff6b6b';
