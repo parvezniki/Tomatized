@@ -220,13 +220,15 @@ margin-bottom: 18px;
 ```
 
   </div>
-  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px;">
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px;position:relative;z-index:100;">
     <div id="ko9-label">Powered by <span>Ko9 Games</span></div>
     <button id="btnCoupon" onclick="openCoupon()" style="
       background:none; border:1.5px solid rgba(255,255,255,0.3);
-      border-radius:7px; padding:3px 8px;
-      font-size:14px; cursor:pointer; line-height:1;
-      color:rgba(255,255,255,0.6);
+      border-radius:7px; padding:6px 12px;
+      font-size:16px; cursor:pointer; line-height:1;
+      color:rgba(255,255,255,0.8);
+      position:relative; z-index:100;
+      -webkit-tap-highlight-color: transparent;
     ">🎟️</button>
   </div>
 </div>
@@ -2697,7 +2699,6 @@ document.getElementById('btnWinRestart').addEventListener('click', () => {
 
 // ── Coupon System ──────────────────────────────────
 function openCoupon() {
-  if (state !== 'playing') return;
   document.getElementById('couponModal').style.display = 'flex';
   document.getElementById('couponInput').value = '';
   document.getElementById('couponMsg').textContent = '';
@@ -2798,6 +2799,8 @@ function applyCoupon() {
 
 // Allow pressing Enter in the input
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnCoupon').addEventListener('click', openCoupon);
+  document.getElementById('btnCoupon').addEventListener('touchend', e => { e.preventDefault(); openCoupon(); });
   document.getElementById('couponInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') applyCoupon();
     if (e.key === 'Escape') closeCoupon();
